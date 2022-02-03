@@ -14,3 +14,6 @@ There are two versions of the script:
 **Simple version**: `python3 doi_extractor.py input_pdf`\
 **Aggressive version**: `python3 doi_extractor_aggressive.py input_pdf`\
 **Argument**: `input_pdf` is the path to the pdf file
+
+## TODO
+- Find a way to implement the CrossRef API to verify integrity of extracted DOIs.
