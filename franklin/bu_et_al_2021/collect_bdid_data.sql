@@ -65,12 +65,12 @@ BEGIN
         END LOOP;
         
         /* Calculate proportions */
-        pcp_r_cited_zero := cp_r_cited_zero / (cp_r_cited_zero + cp_r_cited_nonzero);
-        pcp_r_cited_nonzero := cp_r_cited_nonzero / (cp_r_cited_zero + cp_r_cited_nonzero);
-        pcp_r_citing_zero := cp_r_citing_zero / (cp_r_citing_zero + cp_r_citing_nonzero);
-        pcp_r_citing_nonzero := cp_r_citing_nonzero / (cp_r_citing_zero + cp_r_citing_nonzero);
-        mr_cited_pub := tr_cited_count / (cp_r_cited_zero + cp_r_cited_nonzero);
-        mr_citing_pub := tr_citing_count / (cp_r_citing_zero + cp_r_citing_nonzero);
+        pcp_r_cited_zero := cp_r_cited_zero::DECIMAL / (cp_r_cited_zero + cp_r_cited_nonzero);
+        pcp_r_cited_nonzero := cp_r_cited_nonzero::DECIMAL / (cp_r_cited_zero + cp_r_cited_nonzero);
+        pcp_r_citing_zero := cp_r_citing_zero::DECIMAL / (cp_r_citing_zero + cp_r_citing_nonzero);
+        pcp_r_citing_nonzero := cp_r_citing_nonzero::DECIMAL / (cp_r_citing_zero + cp_r_citing_nonzero);
+        mr_cited_pub := tr_cited_count::DECIMAL / (cp_r_cited_zero + cp_r_cited_nonzero);
+        mr_citing_pub := tr_citing_count::DECIMAL / (cp_r_citing_zero + cp_r_citing_nonzero);
 
         /* Insert into dedicated BDID metrics table */
         INSERT INTO fmoy3.exosome_bdid_metrics VALUES (
