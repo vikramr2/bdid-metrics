@@ -16,27 +16,25 @@ if __name__ == '__main__':
     G = nx.Graph()
     elist = [(1, 2), (1, 3), (1, 4), (4, 2), (2, 3), (3, 5), (5,6), (5, 9), (6, 9), (6, 8), (8, 9)]
     G.add_edges_from(elist)
-    L = nx.line_graph(G)
     
     # Transform the graph and relabel nodes
+    L = nx.line_graph(G)
     e = nx.edges(L)
-    new_e = {}
+    elist = []
+    dict_e = {}
     c = 0
     
     for i in e:
-        if i[0] not in new_e:
-            new_e[i[0]] = c
+        if i[0] not in dict_e:
+            dict_e[i[0]] = c
             c += 1
-        if i[1] not in new_e:
-            new_e[i[1]] = c
+        if i[1] not in dict_e:
+            dict_e[i[1]] = c
             c += 1
-    
-    elist = []
-    for i in e:
-        elist.append((new_e[i[0]], new_e[i[1]]))
+        elist.append((dict_e[i[0]], dict_e[i[1]]))
     
     
-    # Create new graph where new graph = L
+    # Create new graph where new graph = line graph
     G = nx.Graph()
     G.add_edges_from(elist)
     
