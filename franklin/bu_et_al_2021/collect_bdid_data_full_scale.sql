@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE fmoy3.collect_bdid_data()
+CREATE OR REPLACE PROCEDURE fmoy3.collect_bdid_data_full_scale()
 LANGUAGE plpgsql
 AS $$
 DECLARE
@@ -21,14 +21,12 @@ DECLARE
     mr_cited_pub DECIMAL(10,4);
     inserts_staged INT DEFAULT 0;
 BEGIN
-    /* DEBUG ONLY: Clear the test table */
-    TRUNCATE TABLE fmoy3.exosome_bdid_metrics;
     /* For each publication in the exosome dataset that has been cited 100 < x < 1000 times */
     FOR focal_int_id IN 
-        SELECT cited_integer_id
-        FROM fmoy3.exosome_pubs_with_cp_between_100_1000_mat
+        SELECT integer_id
+        FROM dimensions.exosome_1900_2010_sabpq_nodelist
     LOOP
-        cp_level_count := (SELECT COUNT(*) FROM dimensions.exosome_1900_2010_sabpq_deduplicated WHERE cited_integer_id = focal_int_id);
+        cp_level_count := (SELECT in_degree FROM dimensions.exosome_1900_2010_sabpq_nodelist WHERE cited_integer_id = focal_int_id);
         cp_r_citing_zero := 0;
         cp_r_citing_nonzero := 0;
         cp_r_cited_zero := 0;
