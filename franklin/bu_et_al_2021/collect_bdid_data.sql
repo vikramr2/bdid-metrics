@@ -1,5 +1,4 @@
-CREATE OR REPLACE FUNCTION fmoy3.collect_bdid_data()
-RETURNS VOID
+CREATE OR REPLACE PROCEDURE fmoy3.collect_bdid_data_test()
 LANGUAGE plpgsql
 AS $$
 DECLARE
@@ -20,10 +19,14 @@ DECLARE
     tr_cited_count INT;
     mr_citing_pub DECIMAL(10,4);
     mr_cited_pub DECIMAL(10,4);
+    inserts_staged INT DEFAULT 0;
 BEGIN
+    /* DEBUG ONLY: Clear the test table */
+    TRUNCATE TABLE fmoy3.exosome_bdid_metrics;
     /* For each publication in the exosome dataset that has been cited 100 < x < 1000 times */
     FOR focal_int_id IN 
-        SELECT cited_integer_id FROM fmoy3.exosome_pubs_with_cp_between_100_1000
+        SELECT cited_integer_id
+        FROM fmoy3.exosome_pubs_with_cp_between_100_1000_mat
     LOOP
         cp_level_count := (SELECT COUNT(*) FROM dimensions.exosome_1900_2010_sabpq_deduplicated WHERE cited_integer_id = focal_int_id);
         cp_r_citing_zero := 0;
@@ -45,7 +48,7 @@ BEGIN
             r_cited := (SELECT COUNT(*) FROM dimensions.exosome_1900_2010_sabpq_deduplicated
                         WHERE citing_integer_id = citing_int_id AND cited_integer_id IN
                         (SELECT cited_integer_id FROM dimensions.exosome_1900_2010_sabpq_deduplicated
-                        WHERE citing_int_id = focal_int_id));
+                        WHERE citing_integer_id = focal_int_id));
             
             /* Accumulate TR[citing] and TR[cited] */
             tr_citing_count := tr_citing_count + r_citing;
@@ -54,13 +57,17 @@ BEGIN
             /* Increment CP counters as necessary for the focused publication */
             IF r_citing = 0 THEN
                 cp_r_citing_zero := cp_r_citing_zero + 1;
-            ELSE 
+            ELSIF r_citing > 0 THEN 
                 cp_r_citing_nonzero := cp_r_citing_nonzero + 1;
+            ELSE 
+                RAISE NOTICE 'r_citing is an invalid value';
             END IF;
             IF r_cited = 0 THEN
                 cp_r_cited_zero := cp_r_cited_zero + 1;
-            ELSE
+            ELSIF r_cited > 0 THEN
                 cp_r_cited_nonzero := cp_r_cited_nonzero + 1;
+            ELSE
+                RAISE NOTICE 'r_cited is an invalid value';
             END IF;
         END LOOP;
         
@@ -73,7 +80,7 @@ BEGIN
         mr_citing_pub := tr_citing_count::DECIMAL / (cp_r_citing_zero + cp_r_citing_nonzero);
 
         /* Insert into dedicated BDID metrics table */
-        INSERT INTO fmoy3.exosome_bdid_metrics VALUES (
+        INSERT INTO fmoy3.exosome_bdid_metrics_test VALUES (
             focal_int_id,
             cp_level_count,
             cp_r_citing_zero,
@@ -90,9 +97,17 @@ BEGIN
             mr_cited_pub
         );
 
+
+        /* Commit every 100 inserts */
+        inserts_staged := inserts_staged + 1;
+        IF inserts_staged % 100 = 0 THEN
+            COMMIT;
+        END IF;
+
     END LOOP;
+    COMMIT;
 END;
 $$; 
 
 /* SELECT fmoy3.collect_bdid_data(); */
-/* DROP FUNCTION IF EXISTS fmoy3.collect_bdid_data; */
+/* DROP PROCEDURE IF EXISTS fmoy3.collect_bdid_data; */

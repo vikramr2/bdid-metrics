@@ -1,5 +1,4 @@
-CREATE OR REPLACE FUNCTION fmoy3.collect_bdid_data_test(limiter INT)
-RETURNS VOID
+CREATE OR REPLACE PROCEDURE fmoy3.collect_bdid_data_test(limiter_percent INT)
 LANGUAGE plpgsql
 AS $$
 DECLARE
@@ -20,16 +19,14 @@ DECLARE
     tr_cited_count INT;
     mr_citing_pub DECIMAL(10,4);
     mr_cited_pub DECIMAL(10,4);
+    inserts_staged INT DEFAULT 0;
 BEGIN
     /* DEBUG ONLY: Clear the test table */
-    DELETE FROM fmoy3.exosome_bdid_metrics_test WHERE cited_integer_id <> 0;
+    TRUNCATE TABLE fmoy3.exosome_bdid_metrics_test;
     /* For each publication in the exosome dataset that has been cited 100 < x < 1000 times */
     FOR focal_int_id IN 
-        SELECT cited_integer_id, COUNT(citing_integer_id)
-        FROM dimensions.exosome_1900_2010_sabpq_deduplicated
-        GROUP BY cited_integer_id
-        HAVING COUNT(citing_integer_id) > 100 AND COUNT(citing_integer_id) < 1000
-        LIMIT limiter
+        SELECT cited_integer_id
+        FROM fmoy3.exosome_pubs_with_cp_between_100_1000_mat TABLESAMPLE SYSTEM(limiter_percent)
     LOOP
         cp_level_count := (SELECT COUNT(*) FROM dimensions.exosome_1900_2010_sabpq_deduplicated WHERE cited_integer_id = focal_int_id);
         cp_r_citing_zero := 0;
@@ -100,7 +97,15 @@ BEGIN
             mr_cited_pub
         );
 
+
+        /* Commit every 1000 inserts */
+        inserts_staged := inserts_staged + 1;
+        IF inserts_staged % 50 = 0 THEN
+            COMMIT;
+        END IF;
+
     END LOOP;
+    COMMIT;
 END;
 $$; 
 
