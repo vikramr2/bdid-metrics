@@ -2,10 +2,11 @@
 # The proportional calculations can be performed later
 # George Chacko 2/12/2022
 
+print(Sys.time())
+print("***********")
 rm(list = ls())
 library(data.table)
-# ptm <- proc.time()
-i=1
+
 x <- fread("citing_cited_network.integer.tsv")
 setkey(x, V2)
 
@@ -14,7 +15,8 @@ bigvec <- x[, unique(V2)]
 
 j <-1
 while (j < length(bigvec)){
-	littlevec <- bigvec[j:(j+999)]
+        ptm <- proc.time()
+	littlevec <- bigvec[j:(j+4999)]
 # get citing articles for littlevec
 c <- x[V2 %in% littlevec] 
 
@@ -63,9 +65,11 @@ df <- data.frame()
 		colnames(df) <- c('fp','tr_citing_pub', 'cp_r_citing_pub_nonzero', 'cp_r_citing_pub_zero',
 			'tr_cited_pub', 'cp_r_cited_pub_nonzero', 'cp_r_cited_pub_zero')
 		}
-j <- j+1000
+j <- j+5000
 fwrite(df,file=paste0('bu-6param_',j,'_',i,'csv'))
+print(j)
+print(i)
+print("***")
+print(proc.time()- ptm)
+print(" ")
 }
-
-
-
