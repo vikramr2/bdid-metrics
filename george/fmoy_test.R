@@ -66,7 +66,7 @@ while (j < 10001){
 		cnt_link_citer_cited <- cc[V1 %in% citers$V1 & V2 %in% t2$V2]
 		tr_cited <- dim(cnt_link_citer_cited)[1]
 		# count of pubs citing focal pub that also cite a reference of a focal pub
-		cp_r_cited_pub_nonzero <- unique(tr_cited$V1)
+		cp_r_cited_pub_nonzero <- unique(cnt_link_citer_cited$V1)
 		# count of pubs citing focal pub that do not cite a reference of a focal pub
 		cp_r_cited_pub_zero <- cp_level  - cp_r_cited_pub_nonzero
 
