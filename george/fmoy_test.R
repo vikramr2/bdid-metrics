@@ -15,7 +15,7 @@ bigvec <- x[, unique(V2)]
 bigvec <- sort(bigvec)
 
 # initialize df for results
-df <- data.frame()
+
 
 j <-1
 while (j <= length(bigvec)){
@@ -33,7 +33,7 @@ while (j <= length(bigvec)){
 
 	# from parent dataset (x) get all edges involving neighbors of nodes in r
 	rr <- x[V1 %in% r$V1 | V2 %in% r$V2]
-
+	df <- data.frame()
 	# for loop
 	for (i in 1:length(littlevec)) {
 
