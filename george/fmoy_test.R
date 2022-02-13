@@ -20,7 +20,7 @@ df <- data.frame()
 j <-1
 while (j <= length(bigvec)){
         ptm <- proc.time()
-	littlevec <- bigvec[j:(j + 2999)]
+	littlevec <- bigvec[j:(j + 999)]
 
 	# get citing articles for littlevec
 	c <- x[V2 %in% littlevec] 
@@ -65,18 +65,16 @@ while (j <= length(bigvec)){
 		cnt_link_citer_cited <- cc[V1 %in% citers$V1 & V2 %in% t2$V2]
 		tr_cited <- dim(cnt_link_citer_cited)[1]
 		# count of pubs citing focal pub that also cite a reference of a focal pub
-		cp_r_cited_pub_nonzero <- unique(cnt_link_citer_cited$V1)
+		cp_r_cited_pub_nonzero <- length(unique(cnt_link_citer_cited$V1))
 		# count of pubs citing focal pub that do not cite a reference of a focal pub
 		cp_r_cited_pub_zero <- cp_level  - cp_r_cited_pub_nonzero
 
 		
-		tmp <- c(littlevec[i],cp_level, cp_r_citing_pub_zero,cp_r_citing_pub_nonzero, tr_citing,			
-				tr_cited, cp_r_cited_pub_nonzero, cp_r_cited_pub_zero)
+		tmp <- c(littlevec[i],cp_level, cp_r_citing_pub_zero,cp_r_citing_pub_nonzero, tr_citing,tr_cited, cp_r_cited_pub_nonzero, cp_r_cited_pub_zero)
 		df <- rbind(df,tmp)
-		colnames(df) <- c('fp', 'cp_level', 'cp_r_citing_pub_nonzero', 'cp_r_citing_pub_zero', 'tr_citing',
-			'tr_cited_pub', 'cp_r_cited_pub_nonzero', 'cp_r_cited_pub_zero')
+		colnames(df) <- c('fp', 'cp_level', 'cp_r_citing_pub_nonzero', 'cp_r_citing_pub_zero', 'tr_citing','tr_cited_pub', 'cp_r_cited_pub_nonzero', 'cp_r_cited_pub_zero')
 		}
-j <- j+3000
+j <- j+1000
 fwrite(df,file=paste0('bu-6param_',j,'_',i,'csv'))
 print(j)
 print(i)
