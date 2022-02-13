@@ -18,10 +18,9 @@ bigvec <- sort(bigvec)
 df <- data.frame()
 
 j <-1
-# while (j <= length(bigvec)){
-while (j < 10001){
+while (j <= length(bigvec)){
         ptm <- proc.time()
-	littlevec <- bigvec[j:(j + 999)]
+	littlevec <- bigvec[j:(j + 2999)]
 
 	# get citing articles for littlevec
 	c <- x[V2 %in% littlevec] 
@@ -77,7 +76,7 @@ while (j < 10001){
 		colnames(df) <- c('fp', 'cp_level', 'cp_r_citing_pub_nonzero', 'cp_r_citing_pub_zero', 'tr_citing',
 			'tr_cited_pub', 'cp_r_cited_pub_nonzero', 'cp_r_cited_pub_zero')
 		}
-j <- j+1000
+j <- j+3000
 fwrite(df,file=paste0('bu-6param_',j,'_',i,'csv'))
 print(j)
 print(i)
