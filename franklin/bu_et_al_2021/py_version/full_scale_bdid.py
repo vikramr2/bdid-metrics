@@ -250,15 +250,16 @@ def main(max_cores: int = 8):
     print("Reading node list...")
     logger.log(logging.INFO, "Reading node list")
 
-    # Read in the node list and prepare child processes (currently using the sample)
+    # Read in the node list (currently using the sample)
     nodes_to_calc = Queue()
     manager = Manager()
-    # Must use a manager-based queue as it is able to handle more than 64 child processes
+    # Must use a manager-based queue to handle more than 64 child processes
     calculated_tuples = manager.Queue()
     with open(
-        "/srv/local/shared/external/dbid/franklins_sample_trimmed_10000.csv", "r"
+        "/srv/local/shared/external/clusterings/exosome_1900_2010_sabpq/IKC+RG+Aug+kmp-parse/ikc-rg-aug_k_5_p_2.clustering",
+        "r",
     ) as file:
-        reader = csv.DictReader(file)
+        reader = csv.DictReader(file, fieldnames=["V1", "V2"])
         for row in reader:
             nodes_to_calc.put((int(row["V1"]), int(row["V2"])))
 
