@@ -40,6 +40,7 @@ class Worker(Process):
             if next_node is None:
                 self.nodes_to_calc.put_nowait(None)
                 self.nodes_to_calc.close()
+                self.calculated_tuples.put(None)
                 print(f"Process {current_process().pid} is ready to join.")
                 break
 
@@ -84,12 +85,12 @@ class Worker(Process):
                 print(f"cp_level = 0 for pub {focal_int_id}")
                 # logger.log(logging.INFO, f"cp_level = 0 for pub {focal_int_id}")
                 print(
-                    f"Process {current_process().pid} has finished pub {focal_int_id} ({self.calculated_tuples.qsize()} / {self.nodes_read} finished)"
+                    f"Process {current_process().pid} has finished pub {focal_int_id} ({self.nodes_to_calc.qsize()} / {self.nodes_read} pubs in queue)"
                 )
                 if self.nodes_to_calc.qsize() % 1000 == 0:
                     logger.log(
                         logging.INFO,
-                        f"{self.calculated_tuples.qsize()} / {self.nodes_read} nodes calculated.",
+                        f"{self.nodes_to_calc.qsize()} / {self.nodes_read} pubs in queue.",
                     )
                 # logger.log(
                 #     logging.INFO,
@@ -168,12 +169,12 @@ class Worker(Process):
             )
             self.calculated_tuples.put(tup)
             print(
-                f"Process {current_process().pid} has finished pub {focal_int_id} ({self.calculated_tuples.qsize()} / {self.nodes_read} finished)"
+                f"Process {current_process().pid} has finished pub {focal_int_id} ({self.nodes_to_calc.qsize()} / {self.nodes_read} pubs in queue)"
             )
             if self.nodes_to_calc.qsize() % 1000 == 0:
                 logger.log(
                     logging.INFO,
-                    f"{self.calculated_tuples.qsize()} / {self.nodes_read} nodes calculated.",
+                    f"{self.nodes_to_calc.qsize()} / {self.nodes_read} pubs in queue",
                 )
             # logger.log(
             #     logging.INFO,
@@ -282,23 +283,7 @@ def main(max_cores: int = 8):
         workers.append(worker)
         worker.start()
 
-    # Wait for workers to finish before writing calculated_tuples to CSV
-    for w in workers:
-        w_pid = w.pid
-        w.join()
-        print(f"Closing process {w_pid}")
-        logger.log(logging.INFO, f"Closing child process {w_pid}")
-
-    run_time = time.time() - start_time
-    print(f"Finished calculating BDID for {nodes_read} nodes in {run_time} seconds")
-    logger.log(
-        logging.INFO,
-        f"Finished calculating BDID for {nodes_read} nodes in {run_time} seconds",
-    )
-
-    print(f"Sampling complete. Writing to output: \n\t{csv_output}")
-    logger.log(logging.INFO, f"Sampling complete. Writing to output: {csv_output}")
-
+    # Write computed items to output as the workers are working
     with open(f"{csv_output}", "w") as output_file:
         writer = csv.DictWriter(
             output_file,
@@ -321,8 +306,14 @@ def main(max_cores: int = 8):
             ],
         )
         writer.writeheader()
-        while not calculated_tuples.empty():
+        while True:
             tup = calculated_tuples.get()
+            if tup is None:
+                # Should only proceed to join children when they have all put Nones in
+                if calculated_tuples.qsize() == 0:
+                    break
+                else:
+                    continue
             writer.writerow(
                 {
                     "pub_int_id": tup[0],
@@ -342,11 +333,22 @@ def main(max_cores: int = 8):
                     "mr_cited": tup[14],
                 }
             )
+    
+    # Close worker processes
+    for w in workers:
+        w_pid = w.pid
+        w.join()
+        print(f"Closing process {w_pid}")
+        logger.log(logging.INFO, f"Closing child process {w_pid}")
+
+    print(f"Sampling complete. Writing to output: \n\t{csv_output}")
+    logger.log(logging.INFO, f"Sampling complete. Writing to output: {csv_output}")
 
     run_time = time.time() - start_time
-    print(f"Finished operating on {nodes_read} nodes in {run_time} seconds")
+    print(f"Finished calculating BDID for {nodes_read} nodes in {run_time} seconds")
     logger.log(
-        logging.INFO, f"Finished operating on {nodes_read} nodes in {run_time} seconds"
+        logging.INFO,
+        f"Finished calculating BDID for {nodes_read} nodes in {run_time} seconds",
     )
     # Signal to the logger that we're done
     log_queue.put_nowait(None)
