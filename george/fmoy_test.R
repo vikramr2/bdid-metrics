@@ -1,4 +1,5 @@
-# test script to see R and data.table can calculate Bu's measurements
+# test script to see if R and data.table can calculate Bu's measurements
+# on the exosome dataset (citing_cited_network.integer.tsv)
 # The proportional calculations can be performed later
 # George Chacko 2/12/2022
 
