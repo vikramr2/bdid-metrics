@@ -71,7 +71,7 @@ while (j <= length(bigvec)){
 		cp_r_cited_pub_zero <- cp_level  - cp_r_cited_pub_nonzero
 
 		
-		tmp <- c(littlevec[i],cp_level, cp_r_citing_pub_zero,cp_r_citing_pub_nonzero, 
+		tmp <- c(littlevec[i],cp_level, cp_r_citing_pub_nonzero,cp_r_citing_pub_zero, 
 		    tr_citing,tr_cited, cp_r_cited_pub_nonzero, cp_r_cited_pub_zero)
 		df <- rbind(df,tmp)
 		colnames(df) <- c('fp', 'cp_level', 'cp_r_citing_pub_nonzero', 'cp_r_citing_pub_zero', 
