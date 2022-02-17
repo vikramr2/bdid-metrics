@@ -7,9 +7,14 @@ print(Sys.time())
 print("***********")
 rm(list = ls())
 library(data.table)
+# to prevent crashes on valhalla
 
-x <- fread("citing_cited_network.integer.tsv")
+
+x <- fread("/srv/local/shared/external/dbid/citing_cited_network.integer.tsv")
 setkey(x, V2)
+# setDTthreads(16)
+# this became unnecessary after upgrading to the dev version of data.table
+# data.table::update.dev.pkg()
 
 # vector of all nodes that are cited at least once
 bigvec <- x[, unique(V2)]
