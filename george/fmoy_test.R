@@ -7,6 +7,8 @@ print(Sys.time())
 print("***********")
 rm(list = ls())
 library(data.table)
+# to prevent crashes on valhalla
+setDTthreads=(16)
 
 x <- fread("citing_cited_network.integer.tsv")
 setkey(x, V2)
