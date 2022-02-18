@@ -2,16 +2,17 @@
 Given a simple undirected graph with edges between nodes, transform into a complex graph
 and find edges between complex nodes.
 """
+from collections import defaultdict
 
 
 def build_complex_graph_dict(simple_graph: dict):
     complex_edges_graph = dict()
     edges_added = set()  # to avoid duplicate additions into the graph
 
-    for n1, n2_set in simple_graph.items():
-        for n2 in n2_set:
-            n3_set = simple_graph[n2]
-            for n3 in n3_set:
+    for n1, n2_list in simple_graph.items():
+        for n2 in n2_list:
+            n3_list = simple_graph[n2]
+            for n3 in n3_list:
                 cn1 = tuple(sorted([n1, n2]))  # first complex node
                 cn2 = tuple(sorted([n2, n3]))  # second complex node
 
@@ -33,9 +34,22 @@ def build_complex_graph_dict(simple_graph: dict):
     return complex_edges_graph
 
 
+def build_complex_graph_dict_v2(simple_graph):
+    complex_edges_graph = defaultdict(list)
+    edges_added = set()
+    for n1, n1_neighbors in simple_graph.items():
+        for i in range(len(n1_neighbors)):
+            for j in range(i+1, len(n1_neighbors)):
+                edge = ((n1, n1_neighbors[i]), (n1, n1_neighbors[j]))
+                if edge not in edges_added:
+                    complex_edges_graph[edge[0]].append(edge[1])
+                    edges_added.add(edge)
+    return complex_edges_graph
+
+
 if __name__ == "__main__":
 
-    input_graph_file_txt = 'test1.txt'
+    input_graph_file_txt = 'test2.txt'
 
     # STEP 1: Read input file, build simple graph, and print edges
     simple_graph = dict()  # input graph in dictionary form
@@ -49,11 +63,11 @@ if __name__ == "__main__":
 
             # simple graph has edge for both directions; this is useful in generating complex edges later
             if n1 not in simple_graph:
-                simple_graph[n1] = set()
-            simple_graph[n1].add(n2)
+                simple_graph[n1] = list()
+            simple_graph[n1].append(n2)
             if n2 not in simple_graph:
-                simple_graph[n2] = set()
-            simple_graph[n2].add(n1)
+                simple_graph[n2] = list()
+            simple_graph[n2].append(n1)
             print(f'{n1} -> {n2}')
             input_graph_num_edges += 1
     print(f'Num Undirected Edges in Input Graph: {input_graph_num_edges}')
@@ -61,7 +75,7 @@ if __name__ == "__main__":
     print('\n')
 
     # STEP 2: Transform simple graph to complex graph and find edges
-    complex_edges_graph = build_complex_graph_dict(simple_graph)  # complex graph in dictionary form
+    complex_edges_graph = build_complex_graph_dict_v2(simple_graph)  # complex graph in dictionary form
 
     # STEP 3: Print complex graph edges
     complex_graph_num_edges = 0
