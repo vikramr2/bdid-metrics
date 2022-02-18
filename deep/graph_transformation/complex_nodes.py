@@ -36,14 +36,13 @@ def build_complex_graph_dict(simple_graph: dict):
 
 def build_complex_graph_dict_v2(simple_graph):
     complex_edges_graph = defaultdict(list)
-    edges_added = set()
+
     for n1, n1_neighbors in simple_graph.items():
         for i in range(len(n1_neighbors)):
             for j in range(i+1, len(n1_neighbors)):
                 edge = ((n1, n1_neighbors[i]), (n1, n1_neighbors[j]))
-                if edge not in edges_added:
-                    complex_edges_graph[edge[0]].append(edge[1])
-                    edges_added.add(edge)
+                complex_edges_graph[edge[0]].append(edge[1])
+
     return complex_edges_graph
 
 
