@@ -1,4 +1,5 @@
-# test script to see R and data.table can calculate Bu's measurements
+# test script to see if R and data.table can calculate Bu's measurements
+# on the exosome dataset (citing_cited_network.integer.tsv)
 # The proportional calculations can be performed later
 # George Chacko 2/12/2022
 
@@ -6,20 +7,23 @@ print(Sys.time())
 print("***********")
 rm(list = ls())
 library(data.table)
+# to prevent crashes on valhalla
 
-x <- fread("citing_cited_network.integer.tsv")
+
+x <- fread("/srv/local/shared/external/dbid/citing_cited_network.integer.tsv")
 setkey(x, V2)
+# setDTthreads(16)
+# this became unnecessary after upgrading to the dev version of data.table
+# data.table::update.dev.pkg()
 
 # vector of all nodes that are cited at least once
 bigvec <- x[, unique(V2)]
 bigvec <- sort(bigvec)
 
-# initialize df for results
-
-
+# loop to generate smaller vector of nodes (avoid memory issues and speeds up)
 j <-1
 while (j <= length(bigvec)){
-        ptm <- proc.time()
+    ptm <- proc.time()
 	littlevec <- bigvec[j:(j + 999)]
 
 	# get citing articles for littlevec
@@ -33,6 +37,8 @@ while (j <= length(bigvec)){
 
 	# from parent dataset (x) get all edges involving neighbors of nodes in r
 	rr <- x[V1 %in% r$V1 | V2 %in% r$V2]
+	
+	# initialize df for output from nested loop below
 	df <- data.frame()
 	# for loop
 	for (i in 1:length(littlevec)) {
@@ -70,15 +76,20 @@ while (j <= length(bigvec)){
 		cp_r_cited_pub_zero <- cp_level  - cp_r_cited_pub_nonzero
 
 		
-		tmp <- c(littlevec[i],cp_level, cp_r_citing_pub_zero,cp_r_citing_pub_nonzero, tr_citing,tr_cited, cp_r_cited_pub_nonzero, cp_r_cited_pub_zero)
+		tmp <- c(littlevec[i],cp_level, cp_r_citing_pub_nonzero,cp_r_citing_pub_zero, 
+		    tr_citing,tr_cited, cp_r_cited_pub_nonzero, cp_r_cited_pub_zero)
 		df <- rbind(df,tmp)
-		colnames(df) <- c('fp', 'cp_level', 'cp_r_citing_pub_nonzero', 'cp_r_citing_pub_zero', 'tr_citing','tr_cited_pub', 'cp_r_cited_pub_nonzero', 'cp_r_cited_pub_zero')
+		colnames(df) <- c('fp', 'cp_level', 'cp_r_citing_pub_nonzero', 'cp_r_citing_pub_zero', 
+		    'tr_citing','tr_cited_pub', 'cp_r_cited_pub_nonzero', 'cp_r_cited_pub_zero')
 		}
 j <- j+1000
+# write df to csv file
 fwrite(df,file=paste0('bu-6param_',j,'_',i,'csv'))
 print(j)
 print(i)
 print("***")
 print(proc.time()- ptm)
+print(Sys.time())
 print(" ")
 }
+
