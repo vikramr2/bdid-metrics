@@ -14,13 +14,10 @@ refcount <- x[, .N, by = "V1"]
 # ranging from 1000 to 250 as cut off
 
 for (t in c(1000, 500, 250, 125)) {
-	print(t)
 	trims <- refcount[N >= t]
-	print(dim(trims))
 	fwrite(trims, file = paste0("citing_cited_high_references_", "t", t, ".csv"))
 	trimvec <- trims[, V1]
 	y <- x[!(V1 %in% trimvec)][!(V2 %in% trimvec)]
-	print(dim(y))
 	fwrite(y, file = paste0("highref_trimmed_citing_cited_", "t", t, ".csv"))
 }
 
