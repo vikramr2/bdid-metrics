@@ -48,7 +48,7 @@ SELECT original_paper_doi, orig_year, retraction_doi, retraction_year
 FROM chackoge.cleaned_rw
 WHERE original_paper_doi IS NOT NULL
 AND original_paper_doi NOT IN ('Unavailable', 'unavailable'))
-SELECT cte.original_paper_doi, cte.orig_year, cte.retraction_doi, cte.retraction_year
+SELECT cte.original_paper_doi, cte.orig_year, cte.retraction_doi, cte.retraction_year,
 	edcn.doi, edcn.year, edcn.integer_id
 FROM cte
 INNER JOIN exosome_dimensions_complete_nodelist edcn
