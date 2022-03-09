@@ -57,9 +57,11 @@ ON edcn.doi=lower(cte.original_paper_doi)")
 ex_nl <- dbGetQuery(con,"SELECT * FROM exosome_dimensions_complete_nodelist")
 
 dbDisconnect(con)
+
 setwd('~/Desktop/Retractions')
 fwrite(ex_nl_orig_retractions,file='ex_orig_retractions.csv')
 fwrite(ex_nl,file='ex_nl.csv')
+
 ### Alternatively
 # dbSendQuery creates a remote object as far as I can tell
 #ex_nl_orig_retractions <- dbSendQuery(con,
@@ -80,5 +82,14 @@ fwrite(ex_nl,file='ex_nl.csv')
 # Clean up
 #dbClearResult(ex_nl_orig_retractions)
 #dbDisconnect(con)
+
+### read into R
+setwd('~/Desktop/Retractions')
+ex_el <- fread('citing_cited_network.integer.tsv') # exosome edgelist
+ex_nl <- fread('ex_nl.csv') # exosome nodelist
+ex_r <- fread('ex_orig_retractions.csv') # retraction data based on original doi matched to exosome nodelist (SQL above)
+
+cited_retractions <- ex_el[V2 %in% ex_r$integer_id][,.N,by='V2'][order(-N)][,.(integer_id=V2,citation_count=N)]
+
 
 
