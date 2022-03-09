@@ -89,7 +89,78 @@ ex_el <- fread('citing_cited_network.integer.tsv') # exosome edgelist
 ex_nl <- fread('ex_nl.csv') # exosome nodelist
 ex_r <- fread('ex_orig_retractions.csv') # retraction data based on original doi matched to exosome nodelist (SQL above)
 
+# Note that 14 articles have 2 rows in ex_r on account of multiple retraction_dois (or possibly some other field)
+# > ex_r[,.N,by='integer_id'][N > 1]
+#  1:    4757071 2
+#  2:    4806381 2
+#  3:    4298595 2
+#  4:   12319840 2
+#  5:    1102064 2
+#  6:    3161675 2
+#  7:    6503172 2
+#  8:    7888570 2
+#  9:    6370231 2
+# 10:    4701851 2
+# 11:    4900446 2
+# 12:   10797456 2
+# 13:    8909636 2
+# 14:    3960810 2
+
+# Identify pubs that cite retracted papers (use the original paper_doi)
+# %in% behaves like intersect and union in terms of not having duplicates in the output
 cited_retractions <- ex_el[V2 %in% ex_r$integer_id][,.N,by='V2'][order(-N)][,.(integer_id=V2,citation_count=N)]
+
+# For each of 4733 retracted papers that have been cited by other papers in ex_el
+# Get number of citations
+# Number of citations that have occurred after the retraction date
+# Number of years after retraction date that citations were recorded (do we need this?)
+# Whether citing papers have also been retracted
+# For retractions with multiple rows take latest retraction date
+
+dupes <- cited_retractions[integer_id %in% (ex_r[,.N,by='integer_id'][N > 1][,integer_id])]
+# wc = working copy
+wc <- ex_r[integer_id %in% dupes$integer_id]
+wc <- ex_r[integer_id %in% dupes$integer_id] # suppress duplicate rows
+wc <- wc[,.SD[which.max(retraction_year)],by=integer_id]
+deduped_ex_r <- ex_r[!integer_id %in% wc$integer_id]
+
+# use deduped ex_r for citation analysis
+clean_cited_retractions <- merge(cited_retractions,deduped_ex_r,by.x='integer_id',by.y='integer_id')[order(-citation_count)]
+# apply arbitrary bound of 50 citations (can be changed to some other value)
+clean_cited_retractions <- clean_cited_retractions[citation_count >=50]
+
+a <- merge(ex_el[V2==clean_cited_retractions[i]$integer_id],ex_nl,by.x='V1',by.y='integer_id')[,.(citing=V1,retracted=V2,citing_year=year)]
+
+# Summary data
+retraction_metadata <- data.frame()
+# Run a for-loop through each integer_id
+for (i in 1:dim(clean_cited_retractions)[1]) {
+	print(i)
+	tempvec <- c(
+	clean_cited_retractions[i]$integer_id,
+	clean_cited_retractions[i]$citation_count,
+ 	clean_cited_retractions[i]$year)
+ 	print(tempvec)
+ 	retraction_metadata <- rbind(retraction_metadata,tempvec)
+}
+names(retraction_metadata) <- c('integer_id', 'network_citation_count', 'pub_year')
+
+retraction_details <- data.frame()
+for (i in 1:dim(clean_cited_retractions)[1]) {
+a <- merge(ex_el[V2==clean_cited_retractions[i]$integer_id],ex_nl,by.x='V1',by.y='integer_id')[,.(citing=V1,retracted=V2,citing_year=year)]
+b <- clean_cited_retractions[i]$year
+a[,post_retraction_citation_period:=citing_year - b]
+retraction_details <- rbind(retraction_details,a)
+}
+
+# Some citing articles are missing year of publication in ex_nl
+
+# retraction_details[is.na(retraction_details$post_retraction_citation_period)]
+#    citing retracted citing_year post_retraction_citation_period
+# 1: 1672169   6150945          NA                              NA
+# 2: 9462623   5815110          NA                              NA
+
+# Fix by 
 
 
 
