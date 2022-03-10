@@ -149,7 +149,7 @@ retraction_details <- data.frame()
 for (i in 1:dim(clean_cited_retractions)[1]) {
 a <- merge(ex_el[V2==clean_cited_retractions[i]$integer_id],ex_nl,by.x='V1',by.y='integer_id')[,.(citing=V1,retracted=V2,citing_year=year)]
 b <- clean_cited_retractions[i]$year
-a[,post_retraction_citation_period:=citing_year - b]
+a[,post_retraction_citation_period:= citing_year - b]
 retraction_details <- rbind(retraction_details,a)
 }
 
@@ -160,7 +160,8 @@ retraction_details <- rbind(retraction_details,a)
 # 1: 1672169   6150945          NA                              NA
 # 2: 9462623   5815110          NA                              NA
 
-# Fix by 
+# Fix by clunky method
+retraction_details <- retraction_details[!is.na(citing_year)]
 
 
 
