@@ -88,6 +88,9 @@ setwd('~/Desktop/Retractions')
 ex_el <- fread('citing_cited_network.integer.tsv') # exosome edgelist
 ex_nl <- fread('ex_nl.csv') # exosome nodelist
 ex_r <- fread('ex_orig_retractions.csv') # retraction data based on original doi matched to exosome nodelist (SQL above)
+# resolve discrepancy between year(Dimensions data) and orig_year (RW) by taking the later of the two to be conservative.
+ex_r[,adjusted_orig_year:=max(orig_year,year),by='integer_id']
+
 
 # Note that 14 articles have 2 rows in ex_r on account of multiple retraction_dois (or possibly some other field)
 # > ex_r[,.N,by='integer_id'][N > 1]
@@ -129,7 +132,7 @@ clean_cited_retractions <- merge(cited_retractions,deduped_ex_r,by.x='integer_id
 # apply arbitrary bound of 50 citations (can be changed to some other value)
 clean_cited_retractions <- clean_cited_retractions[citation_count >=50]
 
-a <- merge(ex_el[V2==clean_cited_retractions[i]$integer_id],ex_nl,by.x='V1',by.y='integer_id')[,.(citing=V1,retracted=V2,citing_year=year)]
+# a <- merge(ex_el[V2==clean_cited_retractions[i]$integer_id],ex_nl,by.x='V1',by.y='integer_id')[,.(citing=V1,retracted=V2,citing_year=year)]
 
 # Summary data
 retraction_metadata <- data.frame()
@@ -139,7 +142,7 @@ for (i in 1:dim(clean_cited_retractions)[1]) {
 	tempvec <- c(
 	clean_cited_retractions[i]$integer_id,
 	clean_cited_retractions[i]$citation_count,
- 	clean_cited_retractions[i]$year)
+ 	clean_cited_retractions[i]$adjusted_orig_year)
  	print(tempvec)
  	retraction_metadata <- rbind(retraction_metadata,tempvec)
 }
@@ -148,7 +151,8 @@ names(retraction_metadata) <- c('integer_id', 'network_citation_count', 'pub_yea
 retraction_details <- data.frame()
 for (i in 1:dim(clean_cited_retractions)[1]) {
 a <- merge(ex_el[V2==clean_cited_retractions[i]$integer_id],ex_nl,by.x='V1',by.y='integer_id')[,.(citing=V1,retracted=V2,citing_year=year)]
-b <- clean_cited_retractions[i]$year
+a <- merge(a,clean_cited_retractions,by.x='retracted',by.y='integer_id')[,.(citing,retracted,citation_count,citing_year,retraction_year,adjusted_orig_year)]
+b <- clean_cited_retractions[i]$adjusted_orig_year
 a[,post_retraction_citation_period:= citing_year - b]
 retraction_details <- rbind(retraction_details,a)
 }
@@ -163,5 +167,9 @@ retraction_details <- rbind(retraction_details,a)
 # Fix by clunky method
 retraction_details <- retraction_details[!is.na(citing_year)]
 
+t <- unique(retraction_details[citing_year > retraction_year][,.(citation_count,.N),by='retracted'])
+t[,ratio:=round(N/citation_count,1)]
+library(ggplot2)
+qplot(citation_count,ratio,data=t,ylab='post_retraction_citations/total_citations',main='Post_retraction in-graph citations, exosome network (!jc250) \n N=236 min(total_citations=50)') + theme_bw() + geom_vline(xintercept=50,color="red")
 
 
