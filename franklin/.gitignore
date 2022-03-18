@@ -1,7 +1,8 @@
 .venv
 logfile*
-nohup.out
+nohup*.out
 fmoy3_bdid_metrics*
 fmoy3_clustered*
 bdid_samples
 clusterings
+__pycache__
