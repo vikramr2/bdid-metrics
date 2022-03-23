@@ -39,20 +39,13 @@ con <- dbConnect(RPostgres::Postgres(),dbname=db,host=ha, user=me, port=pn, pass
 # were retracted.
 
 dbGetQuery(con,"SELECT dedcn.integer_id,dedcn.doi FROM dimensions.exosome_dimensions_complete_nodelist dedcn
-INNER JOIN chackoge.cleaned_rw ccr ON ccr.original_paper_doi=lower(dedcn.doi)")
+INNER JOIN chackoge.cleaned_rw ccr ON lower(ccr.original_paper_doi)=lower(dedcn.doi)")
 
 # get original paper dois joined with integer_ids
-ex_nl_orig_retractions <- dbGetQuery(con,
-"WITH cte AS(
-SELECT original_paper_doi, orig_year, retraction_doi, retraction_year
-FROM chackoge.cleaned_rw
-WHERE original_paper_doi IS NOT NULL
-AND original_paper_doi NOT IN ('Unavailable', 'unavailable'))
-SELECT cte.original_paper_doi, cte.orig_year, cte.retraction_doi, cte.retraction_year,
-	edcn.doi, edcn.year, edcn.integer_id
-FROM cte
-INNER JOIN exosome_dimensions_complete_nodelist edcn
-ON edcn.doi=lower(cte.original_paper_doi)")
+ex_nl_orig_retractions <- dbGetQuery(con,"WITH cte AS( SELECT original_paper_doi, orig_year, retraction_doi, retraction_year
+FROM chackoge.cleaned_rw WHERE original_paper_doi IS NOT NULL AND original_paper_doi NOT IN ('Unavailable', 'unavailable'))
+SELECT cte.original_paper_doi, cte.orig_year, cte.retraction_doi, cte.retraction_year,edcn.doi, edcn.year, edcn.integer_id
+FROM cte INNER JOIN exosome_dimensions_complete_nodelist edcn ON edcn.doi=lower(cte.original_paper_doi)")
 
 ex_nl <- dbGetQuery(con,"SELECT * FROM exosome_dimensions_complete_nodelist")
 
@@ -90,6 +83,7 @@ ex_nl <- fread('ex_nl.csv') # exosome nodelist
 ex_r <- fread('ex_orig_retractions.csv') # retraction data based on original doi matched to exosome nodelist (SQL above)
 # resolve discrepancy between year(Dimensions data) and orig_year (RW) by taking the later of the two to be conservative.
 ex_r[,adjusted_orig_year:=max(orig_year,year),by='integer_id']
+rm(list= ls()[!(ls() %in% c('ex_r','ex_el','ex_nl'))])
 
 
 # Note that 14 articles have 2 rows in ex_r on account of multiple retraction_dois (or possibly some other field)
@@ -124,7 +118,7 @@ dupes <- cited_retractions[integer_id %in% (ex_r[,.N,by='integer_id'][N > 1][,in
 # wc = working copy
 wc <- ex_r[integer_id %in% dupes$integer_id]
 wc <- ex_r[integer_id %in% dupes$integer_id] # suppress duplicate rows
-wc <- wc[,.SD[which.max(retraction_year)],by=integer_id]
+wc <- wc[,.SD[which.min(retraction_year)],by=integer_id] # Alison's suggestion to use min
 deduped_ex_r <- ex_r[!integer_id %in% wc$integer_id]
 
 # use deduped ex_r for citation analysis
@@ -168,8 +162,18 @@ retraction_details <- rbind(retraction_details,a)
 retraction_details <- retraction_details[!is.na(citing_year)]
 
 t <- unique(retraction_details[citing_year > retraction_year][,.(citation_count,.N),by='retracted'])
-t[,ratio:=round(N/citation_count,1)]
+t[,ratio:=round(N/citation_count,2)]
 library(ggplot2)
-qplot(citation_count,ratio,data=t,ylab='post_retraction_citations/total_citations',main='Post_retraction in-graph citations, exosome network (!jc250) \n N=236 min(total_citations=50)') + theme_bw() + geom_vline(xintercept=50,color="red")
+
+# png
+png('~/repos/clustering_manuscripts/images/blog1.png')
+qplot(citation_count,ratio,data=t,xlab='total_in_graph_citations',ylab='post_retraction_in_graph_citations/total_in_graph_citations',main='Post_retraction in_graph citations, exosome network \n N=236 min(total_citations=50)') + theme_bw() + geom_vline(xintercept=50,color="red") + geom_hline(yintercept=0.25,color="black")
+dev.off()
+
+#pdf
+pdf('~/repos/clustering_manuscripts/images/blog1.pdf')
+qplot(citation_count,ratio,data=t,xlab='total_in_graph_citations',ylab='post_retraction_in_graph_citations/total_in_graph_citations',main='Post_retraction in_graph citations, exosome network \n N=236 min(total_citations=50)') + theme_bw() + geom_vline(xintercept=50,color="red") + geom_hline(yintercept=0.25,color="black")
+dev.off()
+
 
 
