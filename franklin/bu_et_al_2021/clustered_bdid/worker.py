@@ -15,6 +15,7 @@ class Worker(Process):
         calculated_tuples: Queue,
         nodes_read: int,
         df_edges: pd.DataFrame,
+        df_edges_clustered: pd.DataFrame,
         log_queue: Queue,
     ):
         super().__init__(daemon=True)
@@ -22,6 +23,7 @@ class Worker(Process):
         self.calculated_tuples = calculated_tuples
         self.nodes_read = nodes_read
         self.df_edges = df_edges
+        self.df_edges_clustered = df_edges_clustered
         self.log_queue = log_queue
 
     def run(self):
@@ -48,20 +50,20 @@ class Worker(Process):
             ]
             
             # Filter the edge list to edges in the cluster
-            intra_cluster_edges = self.df_edges.loc[
+            intra_cluster_edges = self.df_edges_clustered.loc[
                 (
-                    (self.df_edges["citing_cluster_id"] == cluster_id)
-                    & (self.df_edges["cited_cluster_id"] == cluster_id)
+                    (self.df_edges_clustered["citing_cluster_id"] == cluster_id)
+                    & (self.df_edges_clustered["cited_cluster_id"] == cluster_id)
                 )
             ]
 
             # Get all intra_cluster edges where the cited_int_id is the focal
-            focal_incoming_edges_cluster = intra_cluster_edges.loc[
+            focal_incoming_edges_clustered = intra_cluster_edges.loc[
                 (intra_cluster_edges["cited_int_id"] == focal_int_id)
             ]
 
             cp_level = len(focal_incoming_edges.index)
-            cp_level_cluster = len(focal_incoming_edges_cluster.index)
+            cp_level_cluster = len(focal_incoming_edges_clustered.index)
 
             # If the cp_level is 0, then everything is zero
             if cp_level == 0:
@@ -96,15 +98,48 @@ class Worker(Process):
                     )
                 continue
 
+            # If the cp_level_cluster is 0, then everything is zero except for the level
+            if cp_level_cluster == 0:
+                tup = (
+                    focal_int_id,
+                    cluster_id,
+                    cp_level,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                )
+                self.calculated_tuples.put(tup)
+                print(f"cp_level = 0 for pub {focal_int_id}")
+                # logger.log(logging.INFO, f"cp_level = 0 for pub {focal_int_id}")
+                print(
+                    f"Process {current_process().pid} has finished pub {focal_int_id} ({self.nodes_to_calc.qsize()} / {self.nodes_read} pubs in queue)"
+                )
+                if self.nodes_to_calc.qsize() % 1000 == 0:
+                    logger.log(
+                        logging.INFO,
+                        f"{self.nodes_to_calc.qsize()} / {self.nodes_read} pubs in queue.",
+                    )
+                continue
+
             # Get the edges where the citing_int_id also cites
             # another pub that cites focal_int_id
             bread_depth_df = intra_cluster_edges.loc[
                 (
                     intra_cluster_edges["citing_int_id"].isin(
-                        focal_incoming_edges_cluster["citing_int_id"]
+                        focal_incoming_edges_clustered["citing_int_id"]
                     )
                     & intra_cluster_edges["cited_int_id"].isin(
-                        focal_incoming_edges_cluster["citing_int_id"]
+                        focal_incoming_edges_clustered["citing_int_id"]
                     )
                 )
             ]
@@ -119,7 +154,7 @@ class Worker(Process):
             ind_dep_df = intra_cluster_edges.loc[
                 (
                     intra_cluster_edges["citing_int_id"].isin(
-                        focal_incoming_edges_cluster["citing_int_id"]
+                        focal_incoming_edges_clustered["citing_int_id"]
                     )
                     & intra_cluster_edges["cited_int_id"].isin(
                         focal_outgoing_edges["cited_int_id"]
@@ -143,15 +178,15 @@ class Worker(Process):
             cp_r_cited_nonzero = len(unique_citing_ids_ind_dep.index)
 
             # cp_level = cp_r_cit[ing/ed]_zero + cp_r_cit[ing/ed]_nonzero
-            cp_r_citing_zero = cp_level - cp_r_citing_nonzero
-            cp_r_cited_zero = cp_level - cp_r_cited_nonzero
+            cp_r_citing_zero = cp_level_cluster - cp_r_citing_nonzero
+            cp_r_cited_zero = cp_level_cluster - cp_r_cited_nonzero
 
-            pcp_r_citing_zero = cp_r_citing_zero / cp_level
-            pcp_r_citing_nonzero = cp_r_citing_nonzero / cp_level
-            pcp_r_cited_zero = cp_r_cited_zero / cp_level
-            pcp_r_cited_nonzero = cp_r_cited_nonzero / cp_level
-            mr_citing = tr_citing / cp_level
-            mr_cited = tr_cited / cp_level
+            pcp_r_citing_zero = cp_r_citing_zero / cp_level_cluster
+            pcp_r_citing_nonzero = cp_r_citing_nonzero / cp_level_cluster
+            pcp_r_cited_zero = cp_r_cited_zero / cp_level_cluster
+            pcp_r_cited_nonzero = cp_r_cited_nonzero / cp_level_cluster
+            mr_citing = tr_citing / cp_level_cluster
+            mr_cited = tr_cited / cp_level_cluster
 
             # Place into synchronous queue for the main process
             tup = (

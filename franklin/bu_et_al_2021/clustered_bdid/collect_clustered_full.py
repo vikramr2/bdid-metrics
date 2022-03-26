@@ -19,6 +19,10 @@ from worker import Worker
 
 def main(max_cores: int = 8):
 
+    # Full-scale is memory intensive, so don't launch too many workers
+    if max_cores > 32:
+        max_cores = 32
+    
     # Format names of output files
     exec_time = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     start_time = time.time()
@@ -97,10 +101,11 @@ def main(max_cores: int = 8):
     # Full-scale: "/srv/local/shared/external/clusterings/exosome_1900_2010_sabpq/IKC+RG+Aug+kmp-parse/ikc-rg-aug_k_5_p_2.clustering"
     # Sample: "/srv/local/shared/external/dbid/franklins_sample.csv"
     with open(
-        "/srv/local/shared/external/dbid/franklins_sample.csv",
+        "/srv/local/shared/external/clusterings/exosome_1900_2010_sabpq/IKC+RG+Aug+kmp-parse/ikc-rg-aug_k_5_p_2.clustering",
         "r",
     ) as file:
-        reader = csv.DictReader(file)
+        reader = csv.DictReader(file, fieldnames=["V1", "V2"])
+        # reader = csv.DictReader(file)
         for row in reader:
             nodes_to_calc.put((int(row["V1"]), int(row["V2"])))
 
@@ -157,7 +162,7 @@ def main(max_cores: int = 8):
 if __name__ == "__main__":
     if len(sys.argv) > 2:
         print("Too many arguments. See usage below:")
-        print("Usage: collect_clustered.py [num_cores]")
+        print("Usage: collect_clustered_full.py [num_cores]")
         print("\tArguments:")
         print(
             "\t\tnum_cores: Optional. Maximum number of CPU cores to use. Defaults to 8."
