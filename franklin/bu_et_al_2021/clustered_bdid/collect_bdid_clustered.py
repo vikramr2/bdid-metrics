@@ -1,6 +1,7 @@
 # Utility Imports
 import csv
 from datetime import datetime
+import os
 import sys
 import time
 
@@ -17,7 +18,14 @@ from log_listener import LogListener
 from worker import Worker
 
 
-def main(max_cores: int = 8):
+def main(path_to_clustering_file: str, path_to_edge_list: str, max_cores: int = 8):
+
+    # Full-scale is memory intensive, so don't launch too many workers
+    if max_cores > 32:
+        max_cores = 32
+    
+    # Reduce to account for the logger and writer workers
+    max_cores -= 2
 
     # Format names of output files
     exec_time = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
@@ -42,11 +50,11 @@ def main(max_cores: int = 8):
         logging.INFO, f"Entered main function: Will generate output in {csv_output}"
     )
     print(
-        f"Using {max_cores} CPU cores ({max_cores+2} including logger and csv_writer)..."
+        f"Using {max_cores} workers ({max_cores+2} including logger and csv_writer)..."
     )
     logger.log(
         logging.INFO,
-        f"Using {max_cores} CPU cores ({max_cores+2} including logger and csv_writer)...",
+        f"Using {max_cores} workers ({max_cores+2} including logger and csv_writer)...",
     )
 
     print("Generating dataframe. This will take a minute...")
@@ -54,28 +62,28 @@ def main(max_cores: int = 8):
 
     # Put edge list into a dataframe
     df_edges = pd.read_csv(
-        "/srv/local/shared/external/for_eleanor/gc_exosome/citing_cited_network.integer.tsv",
+        path_to_edge_list,
         sep="\t",
         names=["citing_int_id", "cited_int_id"],
     )
 
     # Put edge list with each endpoint's cluster_id into a dataframe
-    # Note that some edges will be lost if either or both of its 
+    # Note that some edges will be lost if either or both of its
     # endpoints were part of kmp-invalid clusters
     df_edges_clustered = pd.read_csv(
-        "/srv/local/shared/external/for_eleanor/gc_exosome/citing_cited_network.integer.tsv",
+        path_to_edge_list,
         sep="\t",
         names=["citing_int_id", "cited_int_id"],
     )
     df_clusters = pd.read_csv(
-        "/srv/local/shared/external/clusterings/exosome_1900_2010_sabpq/IKC+RG+Aug+kmp-parse/ikc-rg-aug_k_5_p_2.clustering",
+        path_to_clustering_file,
         names=["citing_int_id", "citing_cluster_id"],
     )
     df_edges_clustered = df_edges_clustered.merge(
         df_clusters, on="citing_int_id", how="inner"
     )
     df_clusters = pd.read_csv(
-        "/srv/local/shared/external/clusterings/exosome_1900_2010_sabpq/IKC+RG+Aug+kmp-parse/ikc-rg-aug_k_5_p_2.clustering",
+        path_to_clustering_file,
         names=["cited_int_id", "cited_cluster_id"],
     )
     df_edges_clustered = df_edges_clustered.merge(
@@ -97,10 +105,11 @@ def main(max_cores: int = 8):
     # Full-scale: "/srv/local/shared/external/clusterings/exosome_1900_2010_sabpq/IKC+RG+Aug+kmp-parse/ikc-rg-aug_k_5_p_2.clustering"
     # Sample: "/srv/local/shared/external/dbid/franklins_sample.csv"
     with open(
-        "/srv/local/shared/external/dbid/franklins_sample.csv",
+        path_to_clustering_file,
         "r",
     ) as file:
-        reader = csv.DictReader(file)
+        reader = csv.DictReader(file, fieldnames=["V1", "V2"])
+        # reader = csv.DictReader(file)
         for row in reader:
             nodes_to_calc.put((int(row["V1"]), int(row["V2"])))
 
@@ -120,7 +129,12 @@ def main(max_cores: int = 8):
     workers = []
     for _ in range(max_cores):
         worker = Worker(
-            nodes_to_calc, calculated_tuples, nodes_read, df_edges, df_edges_clustered, log_queue
+            nodes_to_calc,
+            calculated_tuples,
+            nodes_read,
+            df_edges,
+            df_edges_clustered,
+            log_queue,
         )
         workers.append(worker)
         worker.start()
@@ -155,12 +169,31 @@ def main(max_cores: int = 8):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 2:
-        print("Too many arguments. See usage below:")
-        print("Usage: collect_clustered.py [num_cores]")
+    if len(sys.argv) != 3 or len(sys.argv) != 4:
+        print("Invalid number of arguments. See usage below:")
+        print(
+            "Usage: collect_clustered_full.py path_to_clustering_file path_to_edge_list [num_workers]"
+        )
         print("\tArguments:")
         print(
-            "\t\tnum_cores: Optional. Maximum number of CPU cores to use. Defaults to 8."
+            "\t\tpath_to_clustering_file: Path to the CSV containing clustering info."
+        )
+        print("\t\path_to_edge_list: Path to the TSV containing the list of edges.")
+        print(
+            "\t\tnum_workers: Optional. Maximum number of parallel workers to use. Defaults to 8."
         )
         exit(1)
-    main(int(sys.argv[1]))
+
+    # Check validity of input paths
+    if os.path.exists(sys.argv[1]) == False:
+        print(
+            "The specified path_to_clustering_file could not be found. Please check the file name and try again."
+        )
+        exit(1)
+    if os.path.exists(sys.argv[2]) == False:
+        print(
+            "The specified path_to_edge_list could not be found. Please check the file name and try again."
+        )
+        exit(1)
+
+    main(sys.argv[1], sys.argv[2], int(sys.argv[3]))

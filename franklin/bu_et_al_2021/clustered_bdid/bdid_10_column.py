@@ -4,12 +4,11 @@ import pandas as pd
 
 def main():
     exec_time = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-    png_output = f"/home/fmoy3/git_repo/franklin/bu_et_al_2021/clustered_bdid/img/clustered_bdid-{exec_time}"
     george_csv = pd.read_csv(
         "/home/fmoy3/git_repo/franklin/bu_et_al_2021/bdid_samples/bu_all.csv"
     )
     clustered_csv = pd.read_csv(
-        "/home/fmoy3/git_repo/franklin/clustered_bdid_metrics-2022-03-07-15-38-22.csv"
+        "/home/fmoy3/git_repo/franklin/clustered_bdid_metrics-2022-03-24-14-46-01.csv"
     )
     clustered_csv.rename(
         columns={"fp_int_id": "fp", "cp_level": "c.cp_level"}, inplace=True

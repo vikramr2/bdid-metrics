@@ -1,4 +1,10 @@
 # Python Version of BDID data collection
+
+## Running this part of the Pipeline
+This folder contains the script used to collect the standard Bu metrics. Optimizations for this part of the pipeline are currently in the works. To run this part of the pipeline, simply run `nohup python3 full_scale_bdid.py <NUM_WORKERS>` where NUM_WORKERS is the number of parallel workers to use. I suggest this number to be about half of the amount of RAM your system has.
+
+Usage: `python3 full_scale_bdid.py`
+
 ## Relevant Files
 - /srv/local/shared/external/clusterings/exosome_1900_2010_sabpq/IKC+RG+Aug+kmp-parse/ikc-rg-aug_k_5_p_2.clustering
     - CSV format
