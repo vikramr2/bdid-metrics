@@ -368,7 +368,7 @@ def main(path_to_edge_list: str, max_cores: int = 8):
 if __name__ == "__main__":
     if len(sys.argv) != 2 or len(sys.argv) != 3:
         print("Invalid number of arguments. See usage below:")
-        print("Usage: full_scale_bdid.py path_to_edge_list [num_workers]")
+        print("Usage: collect_bdid_traditional.py path_to_edge_list [num_workers]")
         print("\tArguments:")
         print(
             "\t\tpath_to_edge_list: Path to the TSV containing the list of edges."
