@@ -7,14 +7,15 @@ import sys
 import time
 
 
-def main(path_to_edge_list: str, path_to_clustering_file: str):
+def main(path_to_edge_list: str, path_to_clustering_file: str, timestamp: str):
     # Time and stopwatch setup
     exec_time = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     start_time = time.time()
-    csv_output = f"networkit_clustered_bdid-{exec_time}.csv"
-
-    # TODO: Either merge this into the traditional_bdid_networkit version
-    #   when done, or create the pipeline by calling these from a bash script.
+    
+    if timestamp == "":
+        csv_output = f"networkit_clustered_bdid-{exec_time}.csv"
+    else:
+        csv_output = f"networkit_clustered_bdid-{timestamp}.csv"
 
     print("Creating Pandas Dataframes for input files...", end=" ", flush=True)
     # Intake clustering CSV into a Pandas DataFrame
@@ -161,9 +162,8 @@ def main(path_to_edge_list: str, path_to_clustering_file: str):
                     for neighbor in cluster_graph.iterNeighbors(citing_pub):
                         # cp_r_citing_nonzero = num citing pubs that also cite other pubs which cite the focal.
                         # NOTE: NetworKit does not have an iterOutNeighbors func,
-                        #         so we also have to check if the neighbor is
-                        #         one of citing_pub's in-neighbors.
-                        #         Counting edges which cite the citing_pub is incorrect.
+                        #         so we use this logically equivalent conditional.
+                        #         Counting edges which cite the citing_pub itself is incorrect.
                         if (
                             cluster_graph.hasEdge(neighbor, focal_pub) == True
                             and neighbor not in cluster_graph.iterInNeighbors(citing_pub)
@@ -204,29 +204,32 @@ def main(path_to_edge_list: str, path_to_clustering_file: str):
                     }
                 )
 
-            if cluster_id % 1000 == 0:
+            if cluster_id % 250 == 0:
                 print(
                     f"{cluster_id} / {max_cluster_id} clusters calculated...\nTotal time elapsed: {time.time() - start_time} seconds..."
                 )
 
     finish_time = time.time() - start_time
     print(
-        f"Completed calculating BDID for {max_cluster_id} clusters in {finish_time} seconds."
+        f"Completed calculating Clustered BDID for {max_cluster_id} clusters in {finish_time} seconds."
     )
     print(f"Output file location: {csv_output}")
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
+    num_args = len(sys.argv)
+    if num_args != 3 and num_args != 4:
         print("Invalid number of arguments. See usage below:")
         print(
-            "Usage: traditional_bdid_networkit.py path_to_edge_list path_to_clustering_file"
+            "Usage: clustered_bdid_networkit.py path_to_edge_list path_to_clustering_file [timestamp]"
         )
         print("\tArguments:")
         print("\t\tpath_to_edge_list: Path to the TSV containing the list of edges.")
         print(
             "\t\tpath_to_clustering_file: Path to the CSV containing clustering info."
         )
+        print("\t\ttimestamp: Optional. Specifies the timestamp suffix for the output file.")
+        print("\t\t\tDefaults to the timestamp of this script's execution.")
         exit(1)
 
     # Check validity of inputs
@@ -241,4 +244,7 @@ if __name__ == "__main__":
         )
         exit(1)
 
-    main(sys.argv[1], sys.argv[2])
+    if num_args == 4:
+        main(sys.argv[1], sys.argv[2], sys.argv[3])
+    else:
+        main(sys.argv[1], sys.argv[2], "")

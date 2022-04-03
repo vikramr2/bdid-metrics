@@ -7,14 +7,17 @@
 - [bdid_10_column.py](bdid_10_column.py)
     - Merges the traditional and clustered BDID metrics together into one output CSV. Because it uses natural joins, if either one of the input CSVs are missing integer_id rows that the other has, it is dropped from the resulting CSV.
     - May be deprecated after pipeline optimizations, as both traditional and clustered metrics will then be calculated in the same process.
-- [`plot_bdid_ratios.py`](plot_bdid_ratios.py)
-    - Creates scatter and density plots of the ratios of the clustered Bu metrics to their traditional Bu counterparts and saves them.
-    - Run using `python3 plot_bdid_ratios.py`
-- [`plot_bdid_vs_level.py`](plot_bdid_vs_levels.py)
-    - Creates scatter plots of the traditional and the clustered Bu metrics.
-    - Run using `python3 plot_bdid_vs_level.py`
+- [`csv_writer.py`](csv_writer.py)
+    - Custom module used as a dependency in [`collect_bdid_clustered.py`](collect_clustered.py).
+    - Worker process class that writes metrics to CSV output as workers compute them.
+- [`worker.py`](worker.py)
+    - Custom module used as a dependency in [`collect_bdid_clustered.py`](collect_clustered.py).
+    - Worker process class that computes metrics.
+- [`log_listener.py`](log_listener.py)
+    - Custom module used as a dependency in [`collect_bdid_clustered.py`](collect_clustered.py).
+    - Logger process class that writes to a logfile for debugging and script performance analytics.
 
-## Running this part of the Pipeline
+## Running this part of the Pipeline (DEPRECATED)
 This folder contains the scripts and modules used to calculate the clustered BDID metrics. To run this part of the pipeline, run `nohup python3 collect_clustered_full.py <NUM_WORKERS>` where NUM_WORKERS is the number of parallel workers to use. I suggest this number to be about half of the amount of RAM your system has. 
 
 ## Running the data visualization scripts

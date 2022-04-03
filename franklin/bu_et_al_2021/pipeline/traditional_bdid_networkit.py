@@ -6,11 +6,15 @@ import sys
 import time
 
 
-def main(path_to_edge_list: str):
+def main(path_to_edge_list: str, timestamp: str):
     # Time and stopwatch setup
     exec_time = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     start_time = time.time()
-    csv_output = f"networkit_bdid-{exec_time}.csv"
+    
+    if timestamp == "":
+        csv_output = f"networkit_bdid-{exec_time}.csv"
+    else:
+        csv_output = f"networkit_bdid-{timestamp}.csv"
 
     print("Creating graph in NetworKit...")
     # EdgeList is Tab-Separated and the network's node ID's are 0-indexed
@@ -76,8 +80,8 @@ def main(path_to_edge_list: str):
                 cp_r_cited_flag = False
                 for neighbor in g.iterNeighbors(citing_pub):
                     # cp_r_citing_nonzero = num citing pubs that also cite other pubs which cite the focal
-                    # NOTE: NetworKit does not have an iterOutNeighbors func, so we also
-                    #   need to check if the neighbor is one of citing_pub's in-neighbors.
+                    # NOTE: NetworKit does not have an iterOutNeighbors func, so we
+                    #   use this logically equivalent conditional.
                     #   Counting edges which cite the citing_pub itself is incorrect.
                     if g.hasEdge(
                         neighbor, focal_pub
@@ -125,11 +129,14 @@ def main(path_to_edge_list: str):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
+    num_args = len(sys.argv)
+    if num_args != 2 and num_args != 3:
         print("Invalid number of arguments. See usage below:")
-        print("Usage: traditional_bdid_networkit.py path_to_edge_list")
+        print("Usage: traditional_bdid_networkit.py path_to_edge_list [timestamp]")
         print("\tArguments:")
         print("\t\tpath_to_edge_list: Path to the TSV containing the list of edges.")
+        print("\t\ttimestamp: Optional. Specifies the timestamp suffix for the output file.")
+        print("\t\t\tDefaults to the timestamp of this script's execution.")
         exit(1)
 
     # Check validity of input path
@@ -139,4 +146,8 @@ if __name__ == "__main__":
         )
         exit(1)
 
-    main(sys.argv[1])
+    # Use the timestamp if provided, otherwise signal to main to generate one
+    if num_args == 3:
+        main(sys.argv[1], sys.argv[2])
+    else:
+        main(sys.argv[1], "")

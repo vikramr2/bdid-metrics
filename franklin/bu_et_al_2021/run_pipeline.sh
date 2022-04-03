@@ -6,9 +6,20 @@ We expect the first arg ($1) to be the path to the edge list TSV,
     Exceptions will be thrown by the Python scripts if the files are not of their respective formats,
     and the pipeline will be stopped.
 
-Example script usage:
-    bash run_pipeline.sh path_to_edge_list path_to_clustering_file
+The output files will be placed in the directory where the pipeline was called from.
+    The runtime timestamp ($exec_time) will be noted to title the output files.
+    - The Bu CSV will be saved as networkit_bdid-$exec_time with $exec_time being the timestamp.
+    - The Bu-Plus CSV will be saved as networkit_clustered_bdid-$exec_time with $exec_time being the timestamp.
+    - The final 10 column CSV will be saved as bu_10_column-$exec_time with $exec_time being the timestamp.
+
+Example script usage (runs pipeline with no hangup signal and tracks pipeline runtime):
+    nohup time bash run_pipeline.sh path_to_edge_list path_to_clustering_file
 '
+
+# Grab the runtime timestamp and use it as a suffix for the output files
+exec_time=$(date '+%Y-%m-%d-%H-%M-%S')
+traditional_expected_out="networkit_bdid-$exec_time.csv"
+clustered_expected_out="networkit_clustered_bdid-$exec_time.csv"
 
 # Ensure that the number of args is correct
 if [ $# -ne 2 ]; then
@@ -31,22 +42,34 @@ if [ ! -f "$2" ]; then
     exit 1
 fi
 
-echo -e "Starting BDID Pipeline Stage 1/2:\npython3 pipeline/traditional_bdid_networkit.py $1"
-# python3 pipeline/traditional_bdid_networkit.py $1
+# Craft the arguments for each stage as an array and then pass it to each stage call
+stage_one_args=($1 $exec_time)
+stage_two_args=($1 $2 $exec_time)
+stage_three_args=($traditional_expected_out $clustered_expected_out $exec_time)
 
-# Stop pipeline if an error occurred in the previous script
-if [ $? -ne 0 ]; then
-    echo -e "An error occurred while executing python3 pipeline/traditional_bdid_networkit.py $1.\nPipeline stopped."
+echo -e "Running BDID Pipeline Stage 1/3:\npython3 pipeline/traditional_bdid_networkit.py $1 $exec_time"
+
+# Run stage and stop pipeline if an error occurred in the previous script
+if ! python3 pipeline/traditional_bdid_networkit.py ${stage_one_args[*]}; then
+    echo -e "An error occurred while executing python3 pipeline/traditional_bdid_networkit.py $1 $exec_time\nPipeline killed at Stage 1/3."
     exit 1
 fi
 
-echo -e "Starting BDID Pipeline State 2/2:\npython3 pipeline/clustered_bdid_networkit.py $1 $2"
-python3 pipeline/clustered_bdid_networkit.py $1 $2
+echo "Finished Stage 1/3."
+echo -e "Running BDID Pipeline Stage 2/3:\npython3 pipeline/clustered_bdid_networkit.py $1 $2 $exec_time"
 
-# Stop pipeline if an error occurred in the previous script
-if [ $? -ne 0 ]; then
-    echo -e "An error occurred while executing python3 pipeline/clustered_bdid_networkit.py $1.\nPipeline stopped."
+if ! python3 pipeline/clustered_bdid_networkit.py ${stage_two_args[*]}; then
+    echo -e "An error occurred while executing python3 pipeline/clustered_bdid_networkit.py $1 $2 $exec_time\nPipeline killed at Stage 2/3."
     exit 1
 fi
 
-echo "BDID Pipeline Finished."
+echo "Finished Stage 2/3."
+echo -e "Running BDID Pipeline Stage 3/3:\npython3 pipeline/create_10_column.py $traditional_expected_out $clustered_expected_out $exec_time"
+
+if ! python3 pipeline/create_10_column.py ${stage_three_args[*]}; then
+    echo -e "An error occurred while executing python3 pipeline/create_10_column.py $traditional_expected_out $clustered_expected_out $exec_time\nPipeline killed at Stage 3/3."
+    exit 1
+fi
+
+echo "Finished Stage 3/3."
+echo "BDID Pipeline Finished Successfully."

@@ -1,9 +1,7 @@
-from datetime import datetime
 import pandas as pd
 
 
 def main():
-    exec_time = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     george_csv = pd.read_csv(
         "/home/fmoy3/git_repo/franklin/bu_et_al_2021/bdid_samples/bu_all.csv"
     )
