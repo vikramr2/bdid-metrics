@@ -12,7 +12,7 @@ def main(csv_one: str, csv_two: str, timestamp: str):
     print("Reading CSVs into Pandas...")
     left_csv = pd.read_csv(csv_one)
     right_csv = pd.read_csv(csv_two)
-    joined_csv = right_csv.merge(left_csv, how="inner", on="fp_int_id")
+    joined_csv = left_csv.merge(right_csv, how="inner", on="fp_int_id")
     joined_csv.to_csv(output_csv, index=False)
     print(f"Bu 10 Column saved to {output_csv}")
 
