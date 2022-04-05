@@ -1,6 +1,7 @@
 # Utility Imports
 import csv
 from datetime import datetime
+import os
 import sys
 import time
 
@@ -40,11 +41,11 @@ class Worker(Process):
             if next_node is None:
                 self.nodes_to_calc.put_nowait(None)
                 self.nodes_to_calc.close()
+                self.calculated_tuples.put(None)
                 print(f"Process {current_process().pid} is ready to join.")
                 break
 
-            focal_int_id = next_node[0]
-            cluster_id = next_node[1]
+            focal_int_id = next_node
 
             print(
                 f"Process {current_process().pid} has started pub {focal_int_id} ({self.nodes_to_calc.qsize()} / {self.nodes_read} pubs in queue)"
@@ -65,7 +66,6 @@ class Worker(Process):
             if cp_level == 0:
                 tup = (
                     focal_int_id,
-                    cluster_id,
                     0,
                     0,
                     0,
@@ -84,12 +84,12 @@ class Worker(Process):
                 print(f"cp_level = 0 for pub {focal_int_id}")
                 # logger.log(logging.INFO, f"cp_level = 0 for pub {focal_int_id}")
                 print(
-                    f"Process {current_process().pid} has finished pub {focal_int_id} ({self.calculated_tuples.qsize()} / {self.nodes_read} finished)"
+                    f"Process {current_process().pid} has finished pub {focal_int_id} ({self.nodes_to_calc.qsize()} / {self.nodes_read} pubs in queue)"
                 )
                 if self.nodes_to_calc.qsize() % 1000 == 0:
                     logger.log(
                         logging.INFO,
-                        f"{self.calculated_tuples.qsize()} / {self.nodes_read} nodes calculated.",
+                        f"{self.nodes_to_calc.qsize()} / {self.nodes_read} pubs in queue.",
                     )
                 # logger.log(
                 #     logging.INFO,
@@ -151,7 +151,6 @@ class Worker(Process):
             # Place into synchronous queue for the main process
             tup = (
                 focal_int_id,
-                cluster_id,
                 cp_level,
                 cp_r_citing_zero,
                 cp_r_citing_nonzero,
@@ -168,12 +167,12 @@ class Worker(Process):
             )
             self.calculated_tuples.put(tup)
             print(
-                f"Process {current_process().pid} has finished pub {focal_int_id} ({self.calculated_tuples.qsize()} / {self.nodes_read} finished)"
+                f"Process {current_process().pid} has finished pub {focal_int_id} ({self.nodes_to_calc.qsize()} / {self.nodes_read} pubs in queue)"
             )
             if self.nodes_to_calc.qsize() % 1000 == 0:
                 logger.log(
                     logging.INFO,
-                    f"{self.calculated_tuples.qsize()} / {self.nodes_read} nodes calculated.",
+                    f"{self.nodes_to_calc.qsize()} / {self.nodes_read} pubs in queue",
                 )
             # logger.log(
             #     logging.INFO,
@@ -206,7 +205,13 @@ class LogListener(Process):
             logger.handle(next_message)
 
 
-def main(max_cores: int = 8):
+def main(path_to_edge_list: str, max_cores: int = 8):
+
+    if max_cores > 64:
+        max_cores = 64
+    
+    # Reduce to account for the logger process
+    max_cores -= 1
 
     # Format names of output files
     exec_time = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
@@ -238,7 +243,7 @@ def main(max_cores: int = 8):
 
     # Create a copy of the edge list into a Pandas Dataframe
     df = pd.read_csv(
-        "/srv/local/shared/external/for_eleanor/gc_exosome/citing_cited_network.integer.tsv",
+        path_to_edge_list,
         sep="\t",
         names=["citing_int_id", "cited_int_id"],
     )
@@ -250,17 +255,24 @@ def main(max_cores: int = 8):
     print("Reading node list...")
     logger.log(logging.INFO, "Reading node list")
 
-    # Read in the node list and prepare child processes (currently using the sample)
+    # Read in the node list (currently using the sample)
+    node_list = set()
     nodes_to_calc = Queue()
     manager = Manager()
-    # Must use a manager-based queue as it is able to handle more than 64 child processes
+    # Must use a manager-based queue to handle more than 64 child processes
     calculated_tuples = manager.Queue()
     with open(
-        "/srv/local/shared/external/dbid/franklins_sample_trimmed_10000.csv", "r"
+        path_to_edge_list,
+        "r",
     ) as file:
-        reader = csv.DictReader(file)
+        reader = csv.DictReader(file, fieldnames=["citing_int_id", "cited_int_id"], delimiter='\t')
         for row in reader:
-            nodes_to_calc.put((int(row["V1"]), int(row["V2"])))
+            if int(row["citing_int_id"]) not in node_list:
+                node_list.add(int(row["citing_int_id"]))
+                nodes_to_calc.put(int(row["citing_int_id"]))
+            if int(row["cited_int_id"]) not in node_list:
+                node_list.add(int(row["cited_int_id"]))
+                nodes_to_calc.put(int(row["cited_int_id"]))
 
     nodes_read = nodes_to_calc.qsize()
     nodes_to_calc.put(None)
@@ -281,29 +293,13 @@ def main(max_cores: int = 8):
         workers.append(worker)
         worker.start()
 
-    # Wait for workers to finish before writing calculated_tuples to CSV
-    for w in workers:
-        w_pid = w.pid
-        w.join()
-        print(f"Closing process {w_pid}")
-        logger.log(logging.INFO, f"Closing child process {w_pid}")
-
-    run_time = time.time() - start_time
-    print(f"Finished calculating BDID for {nodes_read} nodes in {run_time} seconds")
-    logger.log(
-        logging.INFO,
-        f"Finished calculating BDID for {nodes_read} nodes in {run_time} seconds",
-    )
-
-    print(f"Sampling complete. Writing to output: \n\t{csv_output}")
-    logger.log(logging.INFO, f"Sampling complete. Writing to output: {csv_output}")
-
+    # Write computed items to output as the workers are working
+    # TODO: Turn this into a CSVWriter module like in the clustered version
     with open(f"{csv_output}", "w") as output_file:
         writer = csv.DictWriter(
             output_file,
             fieldnames=[
                 "pub_int_id",
-                "cluster_id",
                 "cp_level",
                 "cp_r_citing_zero",
                 "cp_r_citing_nonzero",
@@ -320,32 +316,48 @@ def main(max_cores: int = 8):
             ],
         )
         writer.writeheader()
-        while not calculated_tuples.empty():
+        while True:
             tup = calculated_tuples.get()
+            if tup is None:
+                # Should only proceed to join children when they have all put Nones in
+                if calculated_tuples.qsize() == 0:
+                    break
+                else:
+                    continue
             writer.writerow(
                 {
                     "pub_int_id": tup[0],
-                    "cluster_id": tup[1],
-                    "cp_level": tup[2],
-                    "cp_r_citing_zero": tup[3],
-                    "cp_r_citing_nonzero": tup[4],
-                    "tr_citing": tup[5],
-                    "pcp_r_citing_zero": tup[6],
-                    "pcp_r_citing_nonzero": tup[7],
-                    "mr_citing": tup[8],
-                    "cp_r_cited_zero": tup[9],
-                    "cp_r_cited_nonzero": tup[10],
-                    "tr_cited": tup[11],
-                    "pcp_r_cited_zero": tup[12],
-                    "pcp_r_cited_nonzero": tup[13],
-                    "mr_cited": tup[14],
+                    "cp_level": tup[1],
+                    "cp_r_citing_zero": tup[2],
+                    "cp_r_citing_nonzero": tup[3],
+                    "tr_citing": tup[4],
+                    "pcp_r_citing_zero": tup[5],
+                    "pcp_r_citing_nonzero": tup[6],
+                    "mr_citing": tup[7],
+                    "cp_r_cited_zero": tup[8],
+                    "cp_r_cited_nonzero": tup[9],
+                    "tr_cited": tup[10],
+                    "pcp_r_cited_zero": tup[11],
+                    "pcp_r_cited_nonzero": tup[12],
+                    "mr_cited": tup[13],
                 }
             )
+    
+    # Close worker processes
+    for w in workers:
+        w_pid = w.pid
+        w.join()
+        print(f"Closing process {w_pid}")
+        logger.log(logging.INFO, f"Closing child process {w_pid}")
+
+    print(f"Sampling complete. Writing to output: \n\t{csv_output}")
+    logger.log(logging.INFO, f"Sampling complete. Writing to output: {csv_output}")
 
     run_time = time.time() - start_time
-    print(f"Finished operating on {nodes_read} nodes in {run_time} seconds")
+    print(f"Finished calculating BDID for {nodes_read} nodes in {run_time} seconds")
     logger.log(
-        logging.INFO, f"Finished operating on {nodes_read} nodes in {run_time} seconds"
+        logging.INFO,
+        f"Finished calculating BDID for {nodes_read} nodes in {run_time} seconds",
     )
     # Signal to the logger that we're done
     log_queue.put_nowait(None)
@@ -354,12 +366,21 @@ def main(max_cores: int = 8):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 2:
-        print("Too many arguments. See usage below:")
-        print("Usage: collect_bdid_data.py [num_cores]")
+    if len(sys.argv) != 2 or len(sys.argv) != 3:
+        print("Invalid number of arguments. See usage below:")
+        print("Usage: collect_bdid_traditional.py path_to_edge_list [num_workers]")
         print("\tArguments:")
+        print(
+            "\t\tpath_to_edge_list: Path to the TSV containing the list of edges."
+        )
         print(
             "\t\tnum_cores: Optional. Maximum number of CPU cores to use. Defaults to 8."
         )
         exit(1)
-    main(int(sys.argv[1]))
+
+    # Check validity of input path
+    if os.path.exists(sys.argv[1]) == False:
+        print("The specified path_to_edge_list could not be found. Please check the file name and try again.")
+        exit(1)
+
+    main(sys.argv[1], int(sys.argv[2]))

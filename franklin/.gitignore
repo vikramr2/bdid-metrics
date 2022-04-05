@@ -6,3 +6,7 @@ fmoy3_clustered*
 bdid_samples
 clusterings
 __pycache__
+clustered_bdid_metrics-*
+networkit_bdid-*
+networkit_clustered*
+img
