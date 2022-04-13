@@ -24,6 +24,16 @@ def capture_relevant_fields(pubs_all_fields: list):
         pub_relevant_fields['journal_issn'] = pub.get('journalAssociation', {}).get('issn', {}).get('value', '')
         pub_relevant_fields['total_number_of_authors'] = pub.get('totalNumberOfAuthors', None)
 
+        # get all author firstnames and lastnames, comma-separated in one field
+        person_associations = pub.get('personAssociations', [])
+        author_names = ''
+        for i, author in enumerate(person_associations):
+            name = author.get('name', {})
+            author_names += f"{name.get('firstName', '')} {name.get('lastName', '')}".strip()
+            if i < len(person_associations)-1:
+                author_names += ', '
+        pub_relevant_fields['author_names'] = author_names
+
         electronic_versions = pub.get('electronicVersions', [])
         pub_relevant_fields['doi'] = ''
         if len(electronic_versions) > 0:
