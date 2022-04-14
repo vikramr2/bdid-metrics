@@ -35,9 +35,10 @@ def capture_relevant_fields(pubs_all_fields: list):
         pub_relevant_fields['author_names'] = author_names
 
         electronic_versions = pub.get('electronicVersions', [])
-        pub_relevant_fields['doi'] = ''
+        pub_relevant_fields['doi_link'] = ''
         if len(electronic_versions) > 0:
-            pub_relevant_fields['doi'] = electronic_versions[0].get('doi', '')
+            pub_relevant_fields['doi_link'] = electronic_versions[0].get('doi', '')
+        pub_relevant_fields['doi'] = pub_relevant_fields['doi_link'].replace('https://', '', 1)
 
         publication_statuses = pub.get('publicationStatuses', [])
         pub_relevant_fields['year'] = None
