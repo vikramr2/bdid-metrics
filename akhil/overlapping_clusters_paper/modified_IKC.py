@@ -3,6 +3,8 @@ import networkit as nk
 import csv
 import heapq as hq
 
+# Modified version of IKC.py that takes an input tsv instead of csv
+
 def main(args):
 
     edge_list = args.edgeList

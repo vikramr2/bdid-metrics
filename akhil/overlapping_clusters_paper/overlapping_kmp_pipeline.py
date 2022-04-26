@@ -1,16 +1,15 @@
 import click
 from collections import Counter, defaultdict
 from copy import copy, deepcopy
+import logging
 import networkx as nx
 import numpy as np
 import os 
-import overlapping_clusters_stats as ocs 
+#import overlapping_clusters_stats as ocs 
 import pandas as pd
 import statistics
 import time
 from visualization import scatterplot_analysis, histogram_analysis
-
-
 
 @click.command()
 @click.option("--clustering", required=True, type=click.Path(exists=True), help='Clustering output from another method')
@@ -22,6 +21,8 @@ from visualization import scatterplot_analysis, histogram_analysis
 @click.option("--marker-file", required=False, type=click.Path(exists=True), help='The csv mapping of marker node DOI to ID')
 
 def main(clustering, network_file, output_path, min_k_core, top_percent, inclusion_criterion, marker_file):
+  logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
+  
   run_oc = True
   display_cluster_stats = True
   save_output = True
@@ -30,25 +31,23 @@ def main(clustering, network_file, output_path, min_k_core, top_percent, inclusi
   marker_nodes, marker_mapping = parse_marker_file(marker_file)
   marker_nodes.append('1002157')
   marker_mapping['1002157'] = 'BLAST'
-  print('Finished Parsing Marker Node File')
+  logging.info('Finished Parsing Marker Node File')
 
   # Parse Network Data
   node_info = network_to_dict(network_file)
-  print('Finished Network Parsing')
+  logging.info('Finished Network Parsing')
   
   # Parse Clustering Data
   clusters, node_to_cluster_id = clustering_to_dict(clustering, min_k_core)
-  print('Finished Cluster Parsing')
+  logging.info('Finished Cluster Parsing')
 
     
   # Generate Candidates
   candidates = generate_candidates(node_info, top_percent)
-  print('Finished Candidate Generation')
-  
-  
-  oc_start = time.time()
+  logging.info('Finished Candidate Generation')
   
   # Run Iterative OC Generation
+  oc_start = time.time()
   overlapping_clusters = copy(clusters)
   if run_oc:
     overlapping_clusters, overlapping_node_to_cluster_id  = overlapping_clusters_construction(
@@ -57,21 +56,26 @@ def main(clustering, network_file, output_path, min_k_core, top_percent, inclusi
         node_to_cluster_id, 
         top_percent, 
         inclusion_criterion,
-        candidates)
-    print('Finished IOC Generation')
-  
+        candidates) 
   oc_end = time.time()
-  print('IOC Elapsed Time:', oc_end - oc_start)
+  logging.info('Overlapping Clustering Construction Elapsed Time (s): ' + str(oc_end - oc_start))
+  logging.info('Finished Overlapping Clustering Generation')
   
   # Generate Cluster Stats
   if display_cluster_stats:
     cluster_stats(network_file, overlapping_clusters, node_info, marker_nodes)
-    print('Finished Cluster Stats')
-  
+    logging.info('Finished Cluster Stats')
+
+  # Run Intersection Analysis  
+  if run_oc:
+    intersection_stats = ocs.cluster_intersection_analysis(overlapping_clusters)
+    histogram_analysis(intersection_stats['size'], 'experiment_1',min_k_core, inclusion_criterion)
+    logging.info('Finished Intersection Analysis')
+
   # Save OC Output to File
   if save_output:
     overlapping_clusters_to_output(output_path, overlapping_clusters)
-    print('Finished Saving Output')
+    logging.info('Finished Saving Output')
 
 
 '''
@@ -190,6 +194,21 @@ def generate_candidates(node_info, top_percent):
   candidates.sort(reverse=True, key=lambda n: node_info['total_degree'][n])
   return candidates
 
+'''
+Overlapping clustering method that adds candidate nodes to clusters based on some inclusion criterion
+
+Input:
+  clusters {dict} - dictionary of clusters by cluster id
+  node_info {dict} - dictionary of info on nodes in network
+  node_to_cluster_id {dict} - dictionary of nodes mapped to the disjoint cluster id they are part of
+  top_percent int - integer representing top n percent of nodes to consider based on total degree
+  inclusion_criterion str - criteria to include a node into a cluster {k, mcd}
+  candidates [list] list of node ids of the subset of nodes to check coverage
+Output:
+  overlapping_clusters {dict} - dictionary of overlapping clusters by cluster id
+  overlapping_node_to_cluster_id {dict} dictionary of nodes mapped to the overlapping cluster ids they are part of
+
+'''
 def overlapping_clusters_construction(clusters, node_info, node_to_cluster_id, top_percent, inclusion_criterion, candidates):
   overlapping_clusters = copy(clusters)
   overlapping_node_to_cluster_id = copy(node_to_cluster_id)
@@ -204,34 +223,82 @@ def overlapping_clusters_construction(clusters, node_info, node_to_cluster_id, t
   return overlapping_clusters, overlapping_node_to_cluster_id
 
 '''
+Wrapper function to run parsing_clusters.py in eleanor/code
+Currently defaults to p = 0 (No periphery nodes)
 
+Input:
+  network_file str - path to network tsv file 
+  input_path  - input clustering to parse
+  min_k_core int - minimum k value to parse
+Output:
+  None
 '''
 def kmp_valid_parsing(network_file, output_path, min_k_core):
-  command = 'pipenv run python3 ~/ERNIE_Plus/Illinois/clustering/eleanor/code/parsing_clusters.py -e ' + network_file + ' -o ./experiment_1/parsed_' + output_path + ' -c ./experiment_0/' + output_path + ' -k ' + str(min_k_core) + ' -p 2'
-  print(command)
+  command = 'pipenv run python3 ~/ERNIE_Plus/Illinois/clustering/eleanor/code/parsing_clusters.py -e ' + network_file + ' -o ./experiment_1/parsed_' + input_path + ' -c ./experiment_0/' + input_path + ' -k ' + str(min_k_core) + ' -p 0'
   os.system(command)
 
+'''
+Wrapper function to run modified_IKC.py 
+the modified IKC file mirrors the IKC.py in eleanor/code expect the input is a tsv network
+
+Input:
+  network_file str - path to network tsv file 
+  k int - minimum k value to parse
+Output:
+  None
+'''
 def IKC(network_file, k):
   command = 'pipenv run time python3 modified_IKC.py -e ' + network_file + ' -o ./experiment_0/IKC_' + str(k) + '.clustering -k ' + str(k)
-  print(command)
   os.system(command)
 
+'''
+Method to save overlapping cluster to a clustering file
+
+Input:
+  output_path str - path to output clustering file
+  overlapping_clusters {dict} - dictionary of overlapping clusters by cluster id
+Output:
+  None
+'''
 def overlapping_clusters_to_output(output_path, overlapping_clusters):
   output_path_writer = open(output_path, 'w')
   for cluster_id, node_set in overlapping_clusters['Full Clusters'].items():
     for node in node_set:
       output_path_writer.write(cluster_id + ' ' + node + '\n')
 
+'''
+Method to save overlapping cluster to a clustering file
 
+Input:
+  marker_file str - file to csv of marker nodes
+Output:
+  marker_list [list] - list of marker nodes by id
+  mapping {dict} - mapping of marker ids to their DOIs
+'''
 def parse_marker_file(marker_file):
   mapping = defaultdict(str)
   df = pd.read_csv(marker_file)
   markers = df['integer_id']
   for index, n_id in enumerate(df['integer_id']):
     mapping[str(n_id)] = df['doi'][index]
-  return list(map(str, markers.tolist())), mapping
+  marker_list = list(map(str, markers.tolist()))
+  return marker_list, mapping
 
+'''
+Method to extract network data from network file
 
+Info Collected:
+  neighbors - set of neighbors of a given node
+  total_degree - total degree of a given node
+  indegree - citations given to a specific node
+  outdegree - references for a given node
+  candidate_type - type of node {original, candidate}
+
+Input:
+  network_file str - file path to network file to parse
+Output:
+  node_info {dict} dictionary of info on each node in the network 
+'''
 def network_to_dict(network_file):
   node_info = defaultdict()
   node_info['neighbors'] = defaultdict(set)
@@ -262,6 +329,22 @@ def network_to_dict(network_file):
 
   return node_info
 
+'''
+Method to extract cluster data from a clustering file
+
+Info Collected:
+  Full Clusters - set of all nodes in a given cluster
+  Core Node Clusters - set of all core nodes in a given cluster
+  Periphery Node Clusters - set of all periphery nodes in a given cluster
+  mcd - minimum core degree of a given cluster
+  k - k value of a given cluster 
+Input:
+  clustering str - file path to clustering file to parse
+  min_k_core int - minimum k value to parse
+Output:
+  clusters {dict} - dictionary of clusters by cluster id
+  node_to_cluster_id {dict} - dictionary of node ids mapped to their disjoint cluster id
+'''
 def clustering_to_dict(clustering, min_k_core):
   clusters = defaultdict()
   clusters['Full Clusters'] = defaultdict(set)
