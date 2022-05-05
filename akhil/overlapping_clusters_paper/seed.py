@@ -10,10 +10,10 @@ def main():
   cursor = conn.cursor()
 
 
-  query = 'select doi, id from dimensions.df_exosome_seed_1900_2010'
+  query = 'select integer_id, doi from dimensions.exosome_dimensions_complete_nodelist'
   sql_query = pd.read_sql_query(query, conn)
   df = pd.DataFrame(sql_query)
-  df.to_csv(r'~/spring_2022_research/akhil/overlapping_clusters_paper/seed.csv', index = False)
+  df.to_csv(r'~/spring_2022_research/akhil/overlapping_clusters_paper/seed_map.csv', index = False)
 
   if conn:
     cursor.close()

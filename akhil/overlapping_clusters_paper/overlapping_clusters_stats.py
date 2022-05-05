@@ -88,7 +88,7 @@ def tier_analysis(clusters, node_info, candidates):
           node_tier_info[node].append(1)
           node_tiers[0] += 1
         elif node_info['indegree'][node] == 0:
-          print(node_info['total_degree'][node], node_info['outdegree'][node])
+          #print(node_info['total_degree'][node], node_info['outdegree'][node])
           node_tier_info[node].append(3)
           node_tiers[2] += 1
         else:
@@ -114,13 +114,13 @@ def tier_analysis(clusters, node_info, candidates):
 
     aggregate_node_tier_info['node_type'].append(node_info['candidate_type'][node])
   
-  print('Tier 1 Count:', sum(aggregate_node_tier_info['tier_1_count']), 
-        'Tier 2 Count:', sum(aggregate_node_tier_info['tier_2_count']), 
-        'Tier 3 Count:', sum(aggregate_node_tier_info['tier_3_count']))
+  #print('Tier 1 Count:', sum(aggregate_node_tier_info['tier_1_count']), 
+        #'Tier 2 Count:', sum(aggregate_node_tier_info['tier_2_count']), 
+        #'Tier 3 Count:', sum(aggregate_node_tier_info['tier_3_count']))
 
   return cluster_tier_info, aggregate_node_tier_info
 
-def cluster_intersection_analysis(clusters):
+def cluster_intersection_analysis(output_path, clusters):
   intersection_stats = defaultdict(list)
 
   for index1, c_id in enumerate(clusters['Full Clusters']):
@@ -129,12 +129,55 @@ def cluster_intersection_analysis(clusters):
         c1 = clusters['Full Clusters'][c_id]
         c2 = clusters['Full Clusters'][c_id2]
         intersect = c1.intersection(c2)
-        intersection_stats['size'].append(len(intersect))
-        intersection_stats['sum'].append(len(c1) + len(c2))
-        intersection_stats['diff'].append(abs(len(c1) - len(c2)))
+        intersection_stats['c1'].append(c_id)
+        intersection_stats['c2'].append(c_id2)
+        intersection_stats['c1_size'].append(len(c1))
+        intersection_stats['c2_size'].append(len(c2))
 
-  print('Min Intersection Size', min(intersection_stats['size']))
-  print('Median Intersection Size', statistics.median(intersection_stats['size']))
-  print('Max Intersection Size', max(intersection_stats['size']))
+        intersection_stats['intersection_size'].append(len(intersect))
+        intersection_stats['jaccard_similarity'].append(jaccard_similarity(c1, c2))
+        intersection_stats['f1_score'].append(f1_score(c1, c2))
+
+  df_intersection = pd.DataFrame.from_dict(intersection_stats)
+  df_intersection.to_csv(output_path)
+        
+  #print('Min Intersection Size', min(intersection_stats['intersection_size']))
+  #print('Median Intersection Size', statistics.median(intersection_stats['intersection_size']))
+  #print('Max Intersection Size', max(intersection_stats['intersection_size']))
   return intersection_stats
+
+
+def jaccard_similarity(c1, c2):
+  return float(len(c1.intersection(c2)) / len(c1.union(c2)))
+
+def f1_score(c1, c2):
+  return float(2*len(c1.intersection(c2)) / (len(c1) + len(c2)))
+
+
+
+def cluster_analysis(output_path, clusters, node_info, is_overlapping=False):
+  cluster_stats = defaultdict(list)
+
+  for index, c_id in enumerate(clusters['Full Clusters']):
+        c1 = clusters['Full Clusters'][c_id]
+        if is_overlapping:
+          cluster_stats['oc_cluster_size'].append(len(c1))
+          cluster_stats['oc_modularity'].append(clusters['modularity'][c_id])
+          cluster_stats['oc_average_95_percentile_total_degree'].append(average_top_n_total_degree(c1, node_info, 95)) 
+        else:
+          cluster_stats['cluster_size'].append(len(c1))
+          cluster_stats['modularity'].append(clusters['modularity'][c_id])
+          cluster_stats['average_95_percentile_total_degree'].append(average_top_n_total_degree(c1, node_info, 95)) 
+
+  df_clusters = pd.DataFrame.from_dict(cluster_stats)
+  df_clusters.to_csv(output_path)
+        
+  return cluster_stats
+
+def average_top_n_total_degree(cluster, node_info, n):
+  c_sorted = sorted(cluster, key=lambda x:node_info['total_degree'][x], reverse=True)
+  c_sorted_n = c_sorted[:int(((100-n)/100)*len(c_sorted))+1]
+  c_sorted_n_degree = [node_info['total_degree'][c] for c in c_sorted_n]
+  return sum(c_sorted_n_degree)/len(c_sorted_n_degree)
+
 
