@@ -2,6 +2,7 @@ import csv
 import pandas as pd
 import psycopg2 as pg
 
+# Helper code to generate csv file of marker data from the original set of marker nodes from PostgresQL table
 
 def main():
   conn = pg.connect(
