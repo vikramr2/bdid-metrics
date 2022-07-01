@@ -1,12 +1,39 @@
 from collections import Counter, defaultdict
+import overlapping_kmp_pipeline as okmp
 import pandas as pd
 import statistics
 
+
+'''
+Defunct method to generate basic cluster and size distribution statistics given a clustering
+
+Input:
+  clusters {dict} - dictionary of clusters by cluster id
+
+Output:
+  num_clusters int - number of clusters in clustering
+  size_distribution pd.Series - size distribution and statistcs of all clusters in clustering
+'''
 def basic_cluster_stats(clusters):
   num_clusters = len(clusters['Full Clusters'].keys())
   size_distribution = pd.Series([len(nodes) for _, nodes in clusters['Full Clusters'].items()]).describe()
   return num_clusters, size_distribution
 
+'''
+Defunct method used to analyze neighbor coverage of overlapping clustering algorithm
+
+Input:
+  overlapping_clusters {dict} - dictionary of overlapping clusters by cluster id
+  original_clusters {dict} - dictionary of original disjoint clusters by cluster id
+  candidates [list] - list of candidate node ids
+  node_info {dict} - dictionary of info on nodes in network
+  overlapping_node_to_cluster_id {dict} - dictionary mapping node ids to all clusters they are in
+  candidate_criterion str - criterion to judge acceptability of node as a candidate
+
+Output:
+  neighbor_info {dict} - dictionary of neighbor information
+  num_non_added_nodes int - number of nodes not added to any cluster
+'''
 def neighbor_analysis(overlapping_clusters, original_clusters, candidates, node_info, overlapping_node_to_cluster_id, original_node_to_cluster_id, candidate_criterion):
   num_non_added_nodes = 0
   neighbor_info = defaultdict(list)
@@ -34,14 +61,47 @@ def neighbor_analysis(overlapping_clusters, original_clusters, candidates, node_
 
   return neighbor_info, num_non_added_nodes
 
+'''
+Helper function to calculate proportion of neighbors of a node in its original cluster
 
+Input:
+  original_cluster  [list] - list of all nodes in original cluster with given node
+  node int - node id of given node
+  neighbors [list] - list of all neighbors of given node
+
+Output:
+  proportion int - proportion of all neighbors of given node in original cluster
+'''
 def proportion_neighbors_original_clusters(original_cluster, node, neighbors):
   return float(len(neighbors.intersection(original_cluster))/len(neighbors))
 
+'''
+Helper function to calculate proportion of neighbors of a node in its overlapping clusters
+
+Input:
+  all_clusters  [list] - list of all nodes in all overlapping clusters that contain the given node
+  node int - node id of given node
+  neighbors [list] - list of all neighbors of given node
+
+Output:
+  proportion int - proportion of all neighbors of given node in all its overlapping clusters
+'''
 def proportion_neighbors_all_clusters(all_clusters, node, neighbors):
   total_clusters = set().union(*all_clusters)
   return float(len(neighbors.intersection(total_clusters))/len(neighbors))
 
+'''
+Stores and outputs node placement frequency in multiple clusters
+
+Input:
+  clusters {dict} - dictionary of clusters by cluster id
+  candidates [list] -  list of candidate node ids
+  mapping {dict} - mapping of node id to doi
+  node_placement_file str - file path to store node placement data
+
+Output:
+  placement_frequency [list] - list of candidates by placement into overlapping clusters frequency
+'''
 def node_placement_frequency(clusters, candidates, mapping, node_placement_file):
   writer = open(node_placement_file, 'w')
   
@@ -62,11 +122,33 @@ def node_placement_frequency(clusters, candidates, mapping, node_placement_file)
   writer.close()
   return [placement_frequency[n_id] for n_id in placement_frequency.keys() if n_id in candidates]
   
+'''
+Helper function to calculate the number of edges added into clusters when a node is added
+to a specific cluster
 
+Input:
+  node int - node id of given node
+  cluster [list] - list of node ids in the given cluster that the given node is being added to
+  node_info {dict} - dictionary of info on nodes in network
+
+Output:
+  edges_added int - new edges added inside clusters when the given node is added to the cluster
+'''
 def edges_added(node, cluster, node_info):
   return len(node_info['neighbors'][node].intersection(cluster))
 
-# Tier Analysis Involves In Degree
+'''
+Tier analysis similar to the one outlined in Chandrashekaran et al.
+
+Input:
+  clusters {dict} - dictionary of clulsters by cluster id
+  node_info {dict} - dictionary of info on nodes in network
+  candidates [list] - list of candidate node ids
+
+Output:
+  cluster_tier_info {dict} - tier info for nodes grouped by clusters included in
+  aggregate_node_tier_info {dict} - aggregate info for node tiers by tier
+'''
 def tier_analysis(clusters, node_info, candidates):
   cluster_tier_info = defaultdict(list)
   node_tier_info = defaultdict(list)
@@ -120,6 +202,16 @@ def tier_analysis(clusters, node_info, candidates):
 
   return cluster_tier_info, aggregate_node_tier_info
 
+'''
+Method to generate statistics on the intersection points across overlapping clusters
+
+Input:
+  output_path str - output file path to save intersection data to
+  clusters {dict} - dictionary of clusters by cluster id
+
+Output:
+  intersection_stats {dict} - statistics of overlapping clusters intersections
+'''
 def cluster_intersection_analysis(output_path, clusters):
   intersection_stats = defaultdict(list)
 
@@ -146,34 +238,77 @@ def cluster_intersection_analysis(output_path, clusters):
   #print('Max Intersection Size', max(intersection_stats['intersection_size']))
   return intersection_stats
 
+'''
+Helper function to compute the jaccard similarity of two clusters
 
+Input:
+  c1 [list] - list of node ids in cluster 1
+  c2 [list] - list of node ids in cluster 2
+
+Output:
+  jaccard_similarity float - jaccard similarity calculated for c1 and c2
+'''
 def jaccard_similarity(c1, c2):
   return float(len(c1.intersection(c2)) / len(c1.union(c2)))
 
+'''
+Helper function to compute the f1 score of two clusters
+
+Input:
+  c1 [list] - list of node ids in cluster 1
+  c2 [list] - list of node ids in cluster 2
+
+Output:
+  jaccard_similarity float - jaccard similarity calculated for c1 and c2
+'''
 def f1_score(c1, c2):
   return float(2*len(c1.intersection(c2)) / (len(c1) + len(c2)))
 
+'''
+Method to analyze clusters both before and after the overlapping step
 
+Input:
+  G networkx.Graph - networkx representation of input graph
+  output_path str - output file path to save cluster analysis to
+  clusters {dict} - dictionary of clusters by cluster id
+  node_info {dict} - dictionary of info on nodes in network
+  is_overlapping bool - if clusters analyzed are overlapping or not
 
-def cluster_analysis(output_path, clusters, node_info, is_overlapping=False):
+Output:
+  cluster_stats {dict} - dictionary of cluster stats including cluster id, cluster size, modularity, and average total degree of 95th percentile of nodes in cluster
+'''
+def cluster_analysis(G, output_path, clusters, node_info, is_overlapping=False):
   cluster_stats = defaultdict(list)
 
   for index, c_id in enumerate(clusters['Full Clusters']):
         c1 = clusters['Full Clusters'][c_id]
+        cluster_stats['cluster_id'].append(c_id)
+        cluster_stats['cluster_size'].append(len(c1))
+        cluster_stats['modularity'].append(clusters['modularity'][c_id])
+        cluster_stats['average_95_percentile_total_degree'].append(average_top_n_total_degree(c1, node_info, 95)) 
+        cluster_stats['mcd'].append(okmp.get_mcd(G, c1))
         if is_overlapping:
-          cluster_stats['oc_cluster_size'].append(len(c1))
-          cluster_stats['oc_modularity'].append(clusters['modularity'][c_id])
-          cluster_stats['oc_average_95_percentile_total_degree'].append(average_top_n_total_degree(c1, node_info, 95)) 
+          cluster_stats['is_overlapping'].append(True)
         else:
-          cluster_stats['cluster_size'].append(len(c1))
-          cluster_stats['modularity'].append(clusters['modularity'][c_id])
-          cluster_stats['average_95_percentile_total_degree'].append(average_top_n_total_degree(c1, node_info, 95)) 
+          cluster_stats['is_overlapping'].append(False)
 
   df_clusters = pd.DataFrame.from_dict(cluster_stats)
   df_clusters.to_csv(output_path)
         
   return cluster_stats
 
+
+'''
+Method to calculate the average total degree of the top n percent nodes in a given cluster
+
+Input:
+  cluster [list] - list of node ids in a given cluster
+  node_info {dict} - dictionary of info on nodes in network
+  n int - top n percent nodes in cluster to consider
+
+Output:
+  average_top_n_total_degree float - average total degree of top n percent nodes in cluster
+'''
 def average_top_n_total_degree(cluster, node_info, n):
   c_sorted = sorted(cluster, key=lambda x:node_info['total_degree'][x], reverse=True)
   c_sorted_n = c_sorted[:int(((100-n)/100)*len(c_sorted))+1]
