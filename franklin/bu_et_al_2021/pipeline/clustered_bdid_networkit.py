@@ -130,6 +130,10 @@ def main(path_to_edge_list: str, path_to_clustering_file: str, timestamp: str):
                     row["citing_int_id"], row["cited_int_id"], addMissing=True
                 )
 
+            # Ignore singleton clusters
+            if cluster_graph.numberOfEdges() == 0:
+                continue
+            
             # Calculate Bu-Plus metrics for each node in the cluster
             for _, row in intra_cluster_nodes_df.iterrows():
                 focal_pub = row["pub_int_id"]
