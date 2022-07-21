@@ -98,13 +98,13 @@ comps$gp <- factor(comps$gp, levels=c('ikc','aoc_m','aoc_k'))
 pdf('marker_comps.pdf')
 ggplot(comps[r_id %in% c('r1','r2','r3','r4','r5')], aes(x=columns,y=r_id,fill=perc)) + geom_tile() + 
 scale_fill_gradient2(low="darkblue", high="darkgreen", guide="colorbar") + scale_x_discrete(position = "top") + 
-facet_wrap(~gp) + xlab("column_id") + ylab("row_id") + theme(axis.text=element_text(size=12),strip.text.x = element_text(size = 18))
+facet_wrap(~gp) + xlab("column_id") + ylab("row_id") + theme(axis.text=element_text(size=11),strip.text.x = element_text(size = 18))
 dev.off()
 
 pdf('marker_comps_wide.pdf',h=3,w=6)
 ggplot(comps[r_id %in% c('r1','r2','r3','r4','r5')], aes(x=columns,y=r_id,fill=perc)) + geom_tile() + 
 scale_fill_gradient2(low="darkblue", high="darkgreen", guide="colorbar") + scale_x_discrete(position = "top") + 
-facet_wrap(~gp) + xlab("column_id") + ylab("row_id") + theme(axis.text=element_text(size=12),strip.text.x = element_text(size = 18))
+facet_wrap(~gp) + xlab("column_id") + ylab("row_id") + theme(axis.text=element_text(size=11),strip.text.x = element_text(size = 18))
 dev.off()
 
 
