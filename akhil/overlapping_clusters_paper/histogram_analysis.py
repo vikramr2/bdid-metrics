@@ -15,7 +15,7 @@ def main():
   candidates.append('1002157')
   candidates = set(candidates).union(original_candidates)
   print(len(candidates))
-  return
+  
   original_clusters = defaultdict()
   k_clusters = defaultdict()
   mcd_clusters = defaultdict()
@@ -50,6 +50,10 @@ def main():
   network_file = '/srv/local/shared/external/dbid/george/exosome_dimensions_wedell_retraction-depleted_jc250-corrected_no_header.tsv'
   node_info = network_to_dict(network_file)
   
+  print(len(node_info['indegree'].keys()))
+  print(sum(node_info['indegree'].values()))
+
+  return
   print('Finished Parsing Network')
 
   degree_map = Counter(node_info['indegree'])
