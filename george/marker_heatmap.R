@@ -95,17 +95,35 @@ k10_m_hm[,gp:='aoc_m']
 comps <- rbind(k10_hm,k10_k_hm,k10_m_hm)
 comps$gp <- factor(comps$gp, levels=c('ikc','aoc_m','aoc_k'))
 
+# set threshold of 1% on perc
+comps2 <- comps
+comps2[perc < 1.0, perc:=0]
+
+# Since omps2[perc >0,unique(r_id)] only returns rows 1-5 truncate
+
 pdf('marker_comps.pdf')
-ggplot(comps[r_id %in% c('r1','r2','r3','r4','r5')], aes(x=columns,y=r_id,fill=perc)) + geom_tile() + 
+ggplot(comps2[r_id %in% c('r1','r2','r3','r4','r5')], aes(x=columns,y=r_id,fill=perc)) + geom_tile() + 
 scale_fill_gradient2(low="darkblue", high="darkgreen", guide="colorbar") + scale_x_discrete(position = "top") + 
 facet_wrap(~gp) + xlab("column_id") + ylab("row_id") + theme(axis.text=element_text(size=11),strip.text.x = element_text(size = 18))
 dev.off()
 
 pdf('marker_comps_wide.pdf',h=3,w=6)
-ggplot(comps[r_id %in% c('r1','r2','r3','r4','r5')], aes(x=columns,y=r_id,fill=perc)) + geom_tile() + 
+# ggplot(comps[r_id %in% c('r1','r2','r3','r4','r5')], aes(x=columns,y=r_id,fill=perc)) + geom_tile() + 
+ggplot(comps2[r_id %in% c('r1','r2','r3','r4','r5')], aes(x=columns,y=r_id,fill=perc)) + geom_tile() + 
 scale_fill_gradient2(low="darkblue", high="darkgreen", guide="colorbar") + scale_x_discrete(position = "top") + 
 facet_wrap(~gp) + xlab("column_id") + ylab("row_id") + theme(axis.text=element_text(size=11),strip.text.x = element_text(size = 18))
 dev.off()
+
+# create table for paper
+
+marker_suppl_data <- merge(merge(k10_mkrs_counts,k10_m_mkrs_counts,by.x='V1',by.y='V1'),k10_k_mkrs_counts,by.x='V1',by.y='V1')
+marker_suppl_data[,perc.x:=NULL]
+marker_suppl_data[,perc.y:=NULL]
+colnames(marker_suppl_data) <- c('cluster_number', 'ikc mcount', 'ikc size', 'aoc_m mcount', 'aoc_m size', 'aoc_k mcount', 'aoc_k size','perc')
+library(janitor); library(xtable)
+marker_suppl_data <- clean_names(marker_suppl_data)
+print(xtable(marker_suppl_data[aoc_k_mcount >0 ]))
+fwrite(marker_suppl_data,file='~/repos/aj_manuscript/marker_suppl_data.csv')
 
 
 
