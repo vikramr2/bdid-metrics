@@ -609,19 +609,24 @@ def overlapping_clusters_construction(
             print("Original Cluster " + str(cluster_id) + " has negative modularity!")
         nodes_added = 0
         overlapping_clusters["mcd"][cluster_id] = get_mcd(G, cluster_nodes)
+        added_candidates = set()
         for node in candidates:
             if (
                 len(node_info["neighbors"][node].intersection(cluster_nodes))
                 >= overlapping_clusters[inclusion_criterion][cluster_id]
                 and node not in cluster_nodes
             ):
+                overlapping_core_count = len(node_info["neighbors"][node].intersection(cluster_nodes))
+                overlapping_noncore_count = len(node_info["neighbors"][node].intersection(added_candidates))
+                ls_prime = ls + overlapping_core_count + overlapping_noncore_count
                 new_modularity = update_modularity(
-                    ls, ds, l, modularity, node_info, node
+                    ls_prime, ds, l, modularity, node_info, node
                 )
                 if new_modularity > 0:
                     overlapping_clusters["Full Clusters"][cluster_id].add(node)
                     overlapping_node_to_cluster_id[node].add(cluster_id)
                     modularity = new_modularity
+                    added_candidates.add(node)
                     nodes_added += 1
         overlapping_clusters["modularity"][cluster_id] = modularity
 
