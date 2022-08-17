@@ -331,7 +331,7 @@ def overlapping_clusters_construction(clusters, G, node_info, node_to_cluster_id
     overlapping_clusters['mcd'][cluster_id] = get_mcd(G, cluster_nodes)
     for node in candidates:
       if len(node_info['neighbors'][node].intersection(cluster_nodes)) >= overlapping_clusters[inclusion_criterion][cluster_id] and node not in cluster_nodes:
-        new_modularity = get_modularity(ls, ds, l, modularity, node_info, node)
+        new_modularity = update_modularity(ls, ds, l, modularity, node_info, node)
         if new_modularity > 0:
           overlapping_clusters['Full Clusters'][cluster_id].add(node)
           overlapping_node_to_cluster_id[node].add(cluster_id)
@@ -356,7 +356,7 @@ Input:
 Output:
   modularity float - updated modularity of cluster
 '''
-def get_modularity(ls, ds, l, modularity, node_info, node):
+def update_modularity(ls, ds, l, modularity, node_info, node):
   ds += node_info['total_degree'][node]
   modularity = (ls/l - (ds/(2*l))**2)
   return modularity
