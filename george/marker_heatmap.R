@@ -117,9 +117,10 @@ dev.off()
 # create table for paper
 
 marker_suppl_data <- merge(merge(k10_mkrs_counts,k10_m_mkrs_counts,by.x='V1',by.y='V1'),k10_k_mkrs_counts,by.x='V1',by.y='V1')
-marker_suppl_data[,perc.x:=NULL]
-marker_suppl_data[,perc.y:=NULL]
-colnames(marker_suppl_data) <- c('cluster_number', 'ikc mcount', 'ikc size', 'aoc_m mcount', 'aoc_m size', 'aoc_k mcount', 'aoc_k size','perc')
+# marker_suppl_data[,perc.x:=NULL]
+# marker_suppl_data[,perc.y:=NULL]
+colnames( marker_suppl_data) <- c('cluster_number', 'ikc mcount', 'ikc size', 'ikc_perc', 'aoc_m_mcount', 
+'aoc_m_size', 'aoc_m_perc', 'aoc_k_mcount', 'aoc_k_size','aoc_k_perc')
 library(janitor); library(xtable)
 marker_suppl_data <- clean_names(marker_suppl_data)
 print(xtable(marker_suppl_data[aoc_k_mcount >0 ]))
