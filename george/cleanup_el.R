@@ -17,24 +17,28 @@ if (length(args)==0) {
 }
 
 df <- fread(args[1])
-print(print(paste('Orig Rows:',dim(df)[1])))
-
+print(paste('Orig Rows:',dim(df)[1]))
 
 # remove duplicate edges
 df <- unique(df)
-print(print(paste('Minus Duplicates:',dim(df)[1])))
+print(paste('Minus Duplicates:',dim(df)[1]))
 
 # remove self loops
 df <- df[!V1==V2]
-print(print(paste('Minus Selfloops:',dim(df)[1])))
+print(paste('Minus Selfloops:',dim(df)[1]))
 
 # remove parallel edges
-df[,iV1 := V2]
-df[,iV2 := V1]
-df <- df[!(V1==iV1 & V2==iV2)]
-df[,iV1:=NULL];df[,iV2:=NULL]
-print(print(paste('Minus Parallel Edges:',dim(df)[1])))
+df[,less:=pmin(V1,V2)]
+df[,more:=pmax(V1,V2)]
+y <- df[,.N,by=c('less','more')][N>1][,.(less,more)]
+dups <- merge(df,y,by.x=c('V1','V2'),by.y=c('less','more'))[,.(V1,V2)]
+w=sort(df[dups, on=.(V1,V2), which=TRUE, nomatch=0])
+df <- df[!w][,.(V1,V2)]
+print(paste('Minus Parallel Edges:',dim(df)[1]))
 
-fwrite(df, file=args[2], row.names=FALSE)
+# fwrite(df, file=args[2], row.names=FALSE)
+write.table(df, file=args[2], sep="\t", col.names = F, row.names = F)
+
+
 
 
