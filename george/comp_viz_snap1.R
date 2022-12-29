@@ -279,3 +279,39 @@ dev.off()
 p_lfr_wtp_0.5
 lfr_wtp_0.5
 lfr_wtp_0.53
+
+# *** roadnet ***
+roadnet <- fread('roadnet_cm_df.csv')
+# remove cm output before cM-universl treatment
+roadnet <- roadnet[grep("preprocessed", roadnet$Rx, invert = TRUE), ]
+# roadnet <- roadnet[grep("nontree_clusters", roadnet$Rx, invert = TRUE), ]
+t <- sort(roadnet$Rx,decreasing=TRUE)
+roadnet$Rx <- factor(roadnet$Rx,levels=t)
+roadnet[grep("leiden.5",Rx),gp:="leiden.5"]
+roadnet[grep("leiden.1",Rx),gp:="leiden.1"]
+roadnet[grep("leiden.01",Rx),gp:="leiden.01"]
+roadnet[grep("leiden.001",Rx),gp:="leiden.001"]
+#
+roadnet[grep("r2nontree_clusters",Rx),gp2:="r2tree"]
+roadnet[grep("r2nontree_n10_clusters",Rx),gp2:="r2tree_size"]
+roadnet[grep("after",Rx),gp2:="cm1"]
+#
+roadnet1 <- roadnet[!is.na(gp2),]
+roadnet2 <- roadnet[is.na(gp2),]
+roadnet2[Rx %like% "leiden.[0-9]+_nontree_clusters.tsv",gp2:='tree']
+roadnet2[Rx %like% "leiden.[0-9]+_nontree_n10_clusters.tsv",gp2:='tree_size']
+roadnet2[is.na(gp2),gp2:='leiden']
+roadnet3 <- rbind(roadnet1,roadnet2)
+roadnet3$gp <- factor(roadnet3$gp, levels=c('leiden.5','leiden.1','leiden.01','leiden.001'))
+roadnet3$gp2 <- factor(roadnet3$gp2, levels=c('leiden','tree','tree_size','cm1','r2tree','r2tree_size'))
+roadnet3 <- roadnet3[order(gp,gp2)]
+#
+p_roadnet <- ggplot(data=roadnet3, aes(x=gp2, y=node_cov)) +  geom_bar(stat="identity", fill="steelblue") + facet_wrap(~ gp, ncol=2) + ylim(0,1)
+pdf('roadnet.pdf')
+print(p_roadnet)
+dev.off()
+p_roadnet
+roadnet
+roadnet3
+
+
