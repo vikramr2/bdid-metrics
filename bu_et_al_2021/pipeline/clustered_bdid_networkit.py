@@ -24,6 +24,7 @@ def main(path_to_edge_list: str, path_to_clustering_file: str, timestamp: str):
     #           K IDs, then the assigned IDs go from 0 to K-1, inclusive.
     df_clusters = pd.read_csv(
         path_to_clustering_file,
+        sep="\t",
         names=["citing_int_id", "citing_cluster_id"],
     )
 
