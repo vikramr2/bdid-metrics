@@ -18,13 +18,12 @@ def main(path_to_edge_list: str, timestamp: str):
 
     print("Creating graph in NetworKit...")
     # EdgeList is Tab-Separated and the network's node ID's are 0-indexed
-    g = nk.readGraph(
-        path_to_edge_list,
-        nk.graphio.Format.EdgeList,
-        separator="\t",
-        firstNode=0,
-        directed=True,
-    )
+    edgelist_reader = nk.graphio.EdgeListReader("\t", 0, directed=True, continuous=False)
+    g = edgelist_reader.read(path_to_edge_list)
+
+    dehydrator = {int(k): v for k, v in edgelist_reader.getNodeMap().items()}
+    hydrator = {v: k for k, v in dehydrator.items()}
+
     read_time = time.time() - start_time
     num_nodes = g.numberOfNodes()
     print(
@@ -62,7 +61,7 @@ def main(path_to_edge_list: str, timestamp: str):
             if cp_level == 0:
                 writer.writerow(
                     {
-                        "fp_int_id": focal_pub,
+                        "fp_int_id": hydrator[focal_pub],
                         "cp_level": 0,
                         "cp_r_citing_zero": 0,
                         "cp_r_citing_nonzero": 0,
@@ -107,7 +106,7 @@ def main(path_to_edge_list: str, timestamp: str):
 
             writer.writerow(
                 {
-                    "fp_int_id": focal_pub,
+                    "fp_int_id": hydrator[focal_pub],
                     "cp_level": cp_level,
                     "cp_r_citing_zero": cp_r_citing_zero,
                     "cp_r_citing_nonzero": cp_r_citing_nonzero,

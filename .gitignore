@@ -1,6 +1,7 @@
 .venv
 logfile*
 nohup*.out
+nohup*.err
 fmoy3_bdid_metrics*
 fmoy3_clustered*
 bdid_samples
